@@ -201,8 +201,8 @@ if (isFirebaseConfigured) {
 // ============================================================================
 const STORAGE_KEY = 'ronald_ulfah_shared_pet_world_v3';
 const USER_STORAGE_KEY = 'ronald_ulfah_remembered_user_v1';
-const GACHA_COST = 150;
-const DAILY_BONUS_COINS = 45;
+const GACHA_COST = 750;
+const DAILY_BONUS_COINS = 50;
 
 const ROOMS = [
   { id: 'living', label: 'Living Room', shortLabel: 'Living' },
