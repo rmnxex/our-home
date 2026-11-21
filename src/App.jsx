@@ -202,7 +202,7 @@ if (isFirebaseConfigured) {
 const STORAGE_KEY = 'ronald_ulfah_shared_pet_world_v3';
 const USER_STORAGE_KEY = 'ronald_ulfah_remembered_user_v1';
 const GACHA_COST = 700;
-const DAILY_BONUS_COINS = 50;
+const DAILY_BONUS_COINS = 45;
 
 const ROOMS = [
   { id: 'living', label: 'Living Room', shortLabel: 'Living' },
@@ -4520,7 +4520,7 @@ export default function App() {
           loop
           preload="none"
         />
-        <div className="absolute right-3.5 top-16 z-40">
+        <div className="absolute right-3.5 bottom-[84px] z-40">
           {!musicExpanded ? (
             <button
               onClick={handleOpenMusicPlayer}
@@ -4625,14 +4625,16 @@ export default function App() {
                   </button>
                 ) : (
                   <div
+                    onClick={() => setStatusExpanded(false)}
                     onMouseMove={resetStatusIdleTimer}
                     onTouchStart={resetStatusIdleTimer}
-                    className={`rounded-[26px] px-3.5 py-2.5 space-y-2 ${glassPill}`}
+                    className={`rounded-[26px] px-3.5 py-2.5 space-y-2 cursor-pointer ${glassPill}`}
+                    title="Tap to minimize status"
                   >
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
                         {isEditingName ? (
-                          <div className="flex items-center gap-1">
+                          <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1">
                             <input
                               value={nameInput}
                               onChange={(e) => setNameInput(e.target.value)}
@@ -4658,7 +4660,10 @@ export default function App() {
                             </span>
                             {activePet.isSleeping && (
                               <button
-                                onClick={() => handleSwitchRoom('bedroom')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSwitchRoom('bedroom');
+                                }}
                                 className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[#E8ECF8] text-[#3C4B7A] border border-[#C6D0EC] shrink-0 active:scale-95 transition"
                                 title="Go to Bedroom"
                               >
@@ -4672,7 +4677,8 @@ export default function App() {
                       {!isEditingName && (
                         <div className="flex items-center gap-1 shrink-0">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setNameInput(activePet.name);
                               setIsEditingName(true);
                             }}
@@ -4682,7 +4688,8 @@ export default function App() {
                             <Edit3 className="w-3 h-3" />
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setNoteInput(world.loveNote?.text || '');
                               setIsEditingNote((v) => !v);
                             }}
@@ -4715,7 +4722,7 @@ export default function App() {
                     </div>
 
                     {isEditingNote ? (
-                      <div className="flex items-center gap-1.5 pt-0.5">
+                      <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 pt-0.5">
                         <input
                           value={noteInput}
                           onChange={(e) => setNoteInput(e.target.value)}
