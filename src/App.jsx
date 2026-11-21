@@ -33,7 +33,133 @@ import {
   Pause,
   SkipForward,
   Square,
+  Clock,
 } from 'lucide-react';
+
+// ============================================================================
+// REAL-TIME JAKARTA (WIB / Asia/Jakarta) CLOCK & SKY LIGHTING HELPER
+// ============================================================================
+function getJakartaTimeInfo(nowMs = Date.now()) {
+  const date = new Date(nowMs);
+  const formattedTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jakarta',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(date);
+
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 12) % 24;
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+
+  let phase = 'day'; // 'morning' | 'day' | 'sunset' | 'night'
+  if (hour >= 5 && hour < 10) phase = 'morning';
+  else if (hour >= 10 && hour < 16) phase = 'day';
+  else if (hour >= 16 && hour < 19) phase = 'sunset';
+  else phase = 'night';
+
+  const skyPalette = {
+    morning: {
+      sky: '#FDE68A',
+      skyLower: '#BAE6FD',
+      building1: '#CBD5E1',
+      building2: '#94A3B8',
+      celestial: 'sun',
+      sunColor: '#FBBF24',
+      ambientTint: '#FEF3C7',
+      ambientOpacity: 0.08,
+      label: 'Morning',
+      icon: '🌅',
+    },
+    day: {
+      sky: '#BAE6FD',
+      skyLower: '#E0F2FE',
+      building1: '#B8D4E8',
+      building2: '#9EC1DB',
+      celestial: 'sun',
+      sunColor: '#FDE047',
+      ambientTint: '#FFFFFF',
+      ambientOpacity: 0,
+      label: 'Day',
+      icon: '☀️',
+    },
+    sunset: {
+      sky: '#FDBA74',
+      skyLower: '#FDA4AF',
+      building1: '#7C5E78',
+      building2: '#5B4358',
+      celestial: 'sun',
+      sunColor: '#F97316',
+      ambientTint: '#FB923C',
+      ambientOpacity: 0.14,
+      label: 'Sunset',
+      icon: '🌇',
+    },
+    night: {
+      sky: '#0F172A',
+      skyLower: '#1E293B',
+      building1: '#1E293B',
+      building2: '#334155',
+      celestial: 'moon',
+      sunColor: '#FEF08A',
+      ambientTint: '#0F172A',
+      ambientOpacity: 0.24,
+      label: 'Night',
+      icon: '🌙',
+    },
+  }[phase];
+
+  return {
+    formattedTime,
+    hour,
+    minute,
+    phase,
+    isNight: phase === 'night',
+    skyPalette,
+  };
+}
+
+// Compute smart Jakarta (WIB) wake-up timestamp:
+// - Bedtime between 20:00 - 04:00 WIB -> auto wakes between 05:00 - 06:00 WIB
+// - Daytime nap outside 20:00 - 04:00 WIB -> auto wakes after 15 minutes
+function computeJakartaWakeAt(nowMs = Date.now()) {
+  const { hour } = getJakartaTimeInfo(nowMs);
+  const isBedtimeWindow = hour >= 20 || hour < 4;
+  if (!isBedtimeWindow) {
+    return nowMs + 15 * 60 * 1000;
+  }
+
+  // Build next 05:00:00 WIB timestamp + random 0..59 minutes (05:00 - 05:59 WIB)
+  const jakartaFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const baseDate = hour >= 20 ? new Date(nowMs + 24 * 60 * 60 * 1000) : new Date(nowMs);
+  const dateStr = jakartaFormatter.format(baseDate); // YYYY-MM-DD in Jakarta
+  const randomMin = Math.floor(Math.random() * 60);
+  const mm = String(randomMin).padStart(2, '0');
+  const targetIso = `${dateStr}T05:${mm}:00+07:00`;
+  const parsed = Date.parse(targetIso);
+  return Number.isNaN(parsed) ? nowMs + 8 * 60 * 60 * 1000 : parsed;
+}
+
+function formatWakeTimeWIB(wakeAtMs) {
+  if (!wakeAtMs) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(wakeAtMs));
+}
 
 // ============================================================================
 // SHARED MUSIC PLAYLIST (DROP MP3s INTO public/music/ & LIST THEM IN tracks.json)
@@ -102,30 +228,30 @@ const COOKING_RECIPES = [
 
 const OUTFIT_CATALOG = [
   // HATS
-  { id: 'hat_crown', slot: 'hat', name: 'Royal Crown', emoji: '👑', cost: 45, desc: 'Shiny gold crown fit for royalty' },
-  { id: 'hat_party', slot: 'hat', name: 'Party Cone', emoji: '🥳', cost: 25, desc: 'Striped celebration hat' },
-  { id: 'hat_frog', slot: 'hat', name: 'Froggy Hood', emoji: '🐸', cost: 35, desc: 'Cute green frog ears cap' },
-  { id: 'hat_beret', slot: 'hat', name: 'Artist Beret', emoji: '🎨', cost: 30, desc: 'Cozy Parisian strawberry beret' },
-  { id: 'hat_sprout', slot: 'hat', name: 'Leaf Sprout', emoji: '🌱', cost: 20, desc: 'Fresh little garden leaf' },
-  { id: 'hat_wizard', slot: 'hat', name: 'Starry Wizard', emoji: '🧙', cost: 55, desc: 'Magical midnight wizard hat' },
-  { id: 'hat_bunny', slot: 'hat', name: 'Bunny Ears', emoji: '🐰', cost: 35, desc: 'Fluffy pink & white bunny ears' },
-  { id: 'hat_halo', slot: 'hat', name: 'Angel Halo', emoji: '😇', cost: 50, desc: 'Floating golden angel ring' },
+  { id: 'hat_crown', slot: 'hat', name: 'Royal Crown', emoji: '👑', cost: 850, desc: 'Shiny gold crown fit for royalty' },
+  { id: 'hat_party', slot: 'hat', name: 'Party Cone', emoji: '🥳', cost: 550, desc: 'Striped celebration hat' },
+  { id: 'hat_frog', slot: 'hat', name: 'Froggy Hood', emoji: '🐸', cost: 680, desc: 'Cute green frog ears cap' },
+  { id: 'hat_beret', slot: 'hat', name: 'Artist Beret', emoji: '🎨', cost: 600, desc: 'Cozy Parisian strawberry beret' },
+  { id: 'hat_sprout', slot: 'hat', name: 'Leaf Sprout', emoji: '🌱', cost: 500, desc: 'Fresh little garden leaf' },
+  { id: 'hat_wizard', slot: 'hat', name: 'Starry Wizard', emoji: '🧙', cost: 980, desc: 'Magical midnight wizard hat' },
+  { id: 'hat_bunny', slot: 'hat', name: 'Bunny Ears', emoji: '🐰', cost: 680, desc: 'Fluffy pink & white bunny ears' },
+  { id: 'hat_halo', slot: 'hat', name: 'Angel Halo', emoji: '😇', cost: 900, desc: 'Floating golden angel ring' },
   // SHIRTS & NECKWEAR
-  { id: 'shirt_bow', slot: 'shirt', name: 'Dapper Bowtie', emoji: '🎀', cost: 20, desc: 'Sweet pastel ribbon bow' },
-  { id: 'shirt_scarf', slot: 'shirt', name: 'Cozy Scarf', emoji: '🧣', cost: 25, desc: 'Warm winter knit scarf' },
-  { id: 'shirt_sailor', slot: 'shirt', name: 'Sailor Collar', emoji: '⚓', cost: 40, desc: 'Classic navy & white sailor top' },
-  { id: 'shirt_overalls', slot: 'shirt', name: 'Denim Overalls', emoji: '👖', cost: 45, desc: 'Adorable tiny blue overalls' },
-  { id: 'shirt_hoodie', slot: 'shirt', name: 'Pink Hoodie', emoji: '👚', cost: 40, desc: 'Soft strawberry fleece hoodie' },
-  { id: 'shirt_tux', slot: 'shirt', name: 'Mini Tuxedo', emoji: '🤵', cost: 60, desc: 'Fancy formal couple date tux' },
-  { id: 'shirt_flowers', slot: 'shirt', name: 'Sakura Lei', emoji: '🌸', cost: 30, desc: 'Cherry blossom petal garland' },
-  { id: 'shirt_cape', slot: 'shirt', name: 'Hero Cape', emoji: '🦸', cost: 50, desc: 'Super-pet crimson cape' },
+  { id: 'shirt_bow', slot: 'shirt', name: 'Dapper Bowtie', emoji: '🎀', cost: 500, desc: 'Sweet pastel ribbon bow' },
+  { id: 'shirt_scarf', slot: 'shirt', name: 'Cozy Scarf', emoji: '🧣', cost: 550, desc: 'Warm winter knit scarf' },
+  { id: 'shirt_sailor', slot: 'shirt', name: 'Sailor Collar', emoji: '⚓', cost: 750, desc: 'Classic navy & white sailor top' },
+  { id: 'shirt_overalls', slot: 'shirt', name: 'Denim Overalls', emoji: '👖', cost: 820, desc: 'Adorable tiny blue overalls' },
+  { id: 'shirt_hoodie', slot: 'shirt', name: 'Pink Hoodie', emoji: '👚', cost: 750, desc: 'Soft strawberry fleece hoodie' },
+  { id: 'shirt_tux', slot: 'shirt', name: 'Mini Tuxedo', emoji: '🤵', cost: 1050, desc: 'Fancy formal couple date tux' },
+  { id: 'shirt_flowers', slot: 'shirt', name: 'Sakura Lei', emoji: '🌸', cost: 620, desc: 'Cherry blossom petal garland' },
+  { id: 'shirt_cape', slot: 'shirt', name: 'Hero Cape', emoji: '🦸', cost: 900, desc: 'Super-pet crimson cape' },
   // FULL COSTUMES
-  { id: 'costume_bee', slot: 'costume', name: 'Bumblebee Suit', emoji: '🐝', cost: 75, desc: 'Striped bee hood & tiny wings' },
-  { id: 'costume_dino', slot: 'costume', name: 'Dino Onesie', emoji: '🦖', cost: 80, desc: 'Spiky green dinosaur pajamas' },
-  { id: 'costume_astro', slot: 'costume', name: 'Space Helmet', emoji: '🚀', cost: 90, desc: 'Glass astronaut bubble visor' },
-  { id: 'costume_strawberry', slot: 'costume', name: 'Berry Suit', emoji: '🍓', cost: 70, desc: 'Plump sweet strawberry costume' },
-  { id: 'costume_ghost', slot: 'costume', name: 'Boo Sheet', emoji: '👻', cost: 65, desc: 'Playful spooky ghost sheet' },
-  { id: 'costume_panda', slot: 'costume', name: 'Panda Hoodie', emoji: '🐼', cost: 85, desc: 'Fluffy black & white panda suit' },
+  { id: 'costume_bee', slot: 'costume', name: 'Bumblebee Suit', emoji: '🐝', cost: 1250, desc: 'Striped bee hood & tiny wings' },
+  { id: 'costume_dino', slot: 'costume', name: 'Dino Onesie', emoji: '🦖', cost: 1350, desc: 'Spiky green dinosaur pajamas' },
+  { id: 'costume_astro', slot: 'costume', name: 'Space Helmet', emoji: '🚀', cost: 1500, desc: 'Glass astronaut bubble visor' },
+  { id: 'costume_strawberry', slot: 'costume', name: 'Berry Suit', emoji: '🍓', cost: 1200, desc: 'Plump sweet strawberry costume' },
+  { id: 'costume_ghost', slot: 'costume', name: 'Boo Sheet', emoji: '👻', cost: 1150, desc: 'Playful spooky ghost sheet' },
+  { id: 'costume_panda', slot: 'costume', name: 'Panda Hoodie', emoji: '🐼', cost: 1420, desc: 'Fluffy black & white panda suit' },
 ];
 
 const RARITY_STYLES = {
@@ -632,11 +758,12 @@ function RoomDockIcon({ roomId, active }) {
 }
 
 // ============================================================================
-// 5 MODERN ARCHITECTURAL INTERACTIVE ROOMS
+// 5 MODERN ARCHITECTURAL INTERACTIVE ROOMS (WITH LIVE JAKARTA TIME WINDOWS)
 // ============================================================================
 function IllustratedRoomBackdrop({
   roomId,
   isSleeping,
+  jakartaTime,
   isPetOnBed,
   showHints,
   onSofaClick,
@@ -655,6 +782,15 @@ function IllustratedRoomBackdrop({
     transition: 'opacity 320ms ease-out',
     pointerEvents: 'none',
   };
+
+  const sky = jakartaTime?.skyPalette || getJakartaTimeInfo().skyPalette;
+  const phase = jakartaTime?.phase || 'day';
+  const jHour = jakartaTime?.hour ?? 12;
+  const jMinute = jakartaTime?.minute ?? 0;
+
+  // Real Jakarta clock hands for the Bedroom wall clock
+  const hourAngle = ((jHour % 12) + jMinute / 60) * 30;
+  const minuteAngle = jMinute * 6;
 
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -688,6 +824,10 @@ function IllustratedRoomBackdrop({
             <stop offset="55%" stopColor="#F1F5F9" />
             <stop offset="100%" stopColor="#E2E8F0" />
           </linearGradient>
+          <linearGradient id="jakartaWindowSky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={sky.sky} />
+            <stop offset="100%" stopColor={sky.skyLower} />
+          </linearGradient>
           <pattern id="modernDeck" width="60" height="24" patternUnits="userSpaceOnUse">
             <rect width="60" height="24" fill="#B98354" />
             <line x1="0" y1="24" x2="60" y2="24" stroke="#7C512D" strokeWidth="2" />
@@ -702,15 +842,69 @@ function IllustratedRoomBackdrop({
             <rect y="345" width="400" height="455" fill="url(#modernOakFloor)" />
             <rect y="341" width="400" height="5" fill="#292524" />
 
+            {/* Jakarta Sky & Skyline Window */}
             <g>
-              <rect x="266" y="108" width="122" height="234" fill="#D8ECFA" stroke="#1C1917" strokeWidth="6" />
-              <rect x="276" y="236" width="22" height="102" fill="#B8D4E8" />
-              <rect x="304" y="214" width="26" height="124" fill="#A5C7E0" />
-              <rect x="336" y="248" width="20" height="90" fill="#B8D4E8" />
-              <rect x="360" y="226" width="22" height="112" fill="#9EC1DB" />
+              <rect x="266" y="108" width="122" height="234" fill="url(#jakartaWindowSky)" stroke="#1C1917" strokeWidth="6" />
+              {phase === 'night' ? (
+                <g>
+                  <circle cx="352" cy="144" r="15" fill="#FEF08A" />
+                  <circle cx="358" cy="140" r="12" fill={sky.sky} />
+                  <circle cx="292" cy="134" r="1.8" fill="#FFFFFF" className="pet-twinkle" />
+                  <circle cx="316" cy="156" r="1.5" fill="#FEF08A" className="pet-twinkle" />
+                  <circle cx="286" cy="172" r="1.4" fill="#FFFFFF" />
+                  <circle cx="364" cy="176" r="1.6" fill="#FFFFFF" className="pet-twinkle" />
+                </g>
+              ) : (
+                <g>
+                  <circle
+                    cx={phase === 'morning' ? 298 : phase === 'sunset' ? 356 : 348}
+                    cy={phase === 'morning' ? 156 : phase === 'sunset' ? 174 : 142}
+                    r={phase === 'day' ? 18 : 21}
+                    fill={sky.sunColor}
+                    opacity="0.95"
+                  />
+                  {phase === 'day' && (
+                    <g fill="#FFFFFF" opacity="0.82">
+                      <ellipse cx="296" cy="152" rx="18" ry="8" />
+                      <ellipse cx="308" cy="150" rx="14" ry="7" />
+                    </g>
+                  )}
+                </g>
+              )}
+
+              {/* Jakarta Skyline Silhouette */}
+              <rect x="276" y="236" width="22" height="102" fill={sky.building1} />
+              <rect x="304" y="214" width="26" height="124" fill={sky.building2} />
+              <rect x="336" y="248" width="20" height="90" fill={sky.building1} />
+              <rect x="360" y="226" width="22" height="112" fill={sky.building2} />
+
+              {/* Lit Apartment Windows at Night */}
+              {phase === 'night' && (
+                <g fill="#FDE047" opacity="0.85">
+                  <rect x="282" y="250" width="4" height="5" />
+                  <rect x="290" y="272" width="4" height="5" />
+                  <rect x="310" y="232" width="5" height="6" />
+                  <rect x="319" y="256" width="5" height="6" />
+                  <rect x="310" y="284" width="5" height="6" />
+                  <rect x="342" y="268" width="4" height="5" />
+                  <rect x="366" y="244" width="5" height="6" />
+                  <rect x="373" y="276" width="5" height="6" />
+                </g>
+              )}
+
               <line x1="327" y1="108" x2="327" y2="342" stroke="#1C1917" strokeWidth="4.5" />
               <line x1="266" y1="186" x2="388" y2="186" stroke="#1C1917" strokeWidth="4" />
               <line x1="266" y1="264" x2="388" y2="264" stroke="#1C1917" strokeWidth="4" />
+
+              {/* Sunlight Beam Slant on Floor during Morning & Day */}
+              {(phase === 'morning' || phase === 'day') && (
+                <polygon
+                  points="266,345 388,345 330,455 210,455"
+                  fill={phase === 'morning' ? '#FEF08A' : '#FFFFFF'}
+                  opacity={phase === 'morning' ? '0.26' : '0.18'}
+                  pointerEvents="none"
+                />
+              )}
             </g>
 
             <g
@@ -976,7 +1170,7 @@ function IllustratedRoomBackdrop({
           </g>
         )}
 
-        {/* 4. MODERN PLATFORM BEDROOM */}
+        {/* 4. MODERN PLATFORM BEDROOM (LIVE JAKARTA SKY WINDOW & WALL CLOCK) */}
         {roomId === 'bedroom' && (
           <g>
             <rect width="400" height="330" fill="#EDEAE4" />
@@ -984,17 +1178,46 @@ function IllustratedRoomBackdrop({
             <rect y="330" width="400" height="470" fill="url(#modernOakFloor)" />
             <rect y="326" width="400" height="5" fill="#292524" />
 
+            {/* Bedroom Window synced to Jakarta time */}
             <g>
-              <rect x="36" y="138" width="92" height="68" rx="4" fill="#0F172A" stroke="#1C1917" strokeWidth="4.5" />
+              <rect x="36" y="138" width="92" height="68" rx="4" fill="url(#jakartaWindowSky)" stroke="#1C1917" strokeWidth="4.5" />
+              {phase === 'night' ? (
+                <g>
+                  <text x="60" y="178" textAnchor="middle" fontSize="18">🌙</text>
+                  <text x="104" y="176" textAnchor="middle" fontSize="16">✨</text>
+                </g>
+              ) : (
+                <g>
+                  <circle cx="66" cy="166" r="13" fill={sky.sunColor} />
+                  {phase === 'day' && <ellipse cx="102" cy="176" rx="14" ry="6" fill="#FFFFFF" opacity="0.85" />}
+                </g>
+              )}
               <line x1="82" y1="138" x2="82" y2="206" stroke="#1C1917" strokeWidth="3.5" />
-              <text x="60" y="178" textAnchor="middle" fontSize="18">🌙</text>
-              <text x="104" y="176" textAnchor="middle" fontSize="16">✨</text>
             </g>
 
+            {/* Live Jakarta Wall Clock */}
             <g>
               <circle cx="316" cy="184" r="28" fill="#FFFFFF" stroke="#1C1917" strokeWidth="3.5" />
-              <line x1="316" y1="184" x2="316" y2="167" stroke="#1C1917" strokeWidth="3" strokeLinecap="round" />
-              <line x1="316" y1="184" x2="328" y2="188" stroke="#D97757" strokeWidth="2.5" strokeLinecap="round" />
+              <line
+                x1="316"
+                y1="184"
+                x2="316"
+                y2="169"
+                stroke="#1C1917"
+                strokeWidth="3"
+                strokeLinecap="round"
+                transform={`rotate(${hourAngle} 316 184)`}
+              />
+              <line
+                x1="316"
+                y1="184"
+                x2="316"
+                y2="163"
+                stroke="#D97757"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                transform={`rotate(${minuteAngle} 316 184)`}
+              />
               <circle cx="316" cy="184" r="3" fill="#1C1917" />
             </g>
 
@@ -1059,18 +1282,36 @@ function IllustratedRoomBackdrop({
           </g>
         )}
 
-        {/* 5. MODERN COURTYARD & ROOFTOP PARK */}
+        {/* 5. MODERN COURTYARD & ROOFTOP PARK (LIVE JAKARTA SKY) */}
         {roomId === 'park' && (
           <g>
-            <rect width="400" height="335" fill={isSleeping ? '#0F172A' : '#D8ECFA'} />
-            <circle cx="326" cy="144" r="32" fill={isSleeping ? '#FEF08A' : '#FDE047'} />
-            <ellipse cx="94" cy="146" rx="46" ry="18" fill="#FFFFFF" opacity="0.88" />
-            <ellipse cx="222" cy="126" rx="52" ry="20" fill="#FFFFFF" opacity="0.88" />
+            <rect width="400" height="335" fill="url(#jakartaWindowSky)" />
+            {phase === 'night' ? (
+              <g>
+                <circle cx="326" cy="144" r="26" fill="#FEF08A" />
+                <circle cx="336" cy="136" r="22" fill={sky.sky} />
+                <circle cx="88" cy="128" r="2.5" fill="#FFFFFF" className="pet-twinkle" />
+                <circle cx="152" cy="112" r="2" fill="#FEF08A" className="pet-twinkle" />
+                <circle cx="222" cy="138" r="2.5" fill="#FFFFFF" className="pet-twinkle" />
+                <circle cx="272" cy="108" r="2" fill="#FFFFFF" />
+              </g>
+            ) : (
+              <g>
+                <circle
+                  cx={phase === 'morning' ? 110 : phase === 'sunset' ? 334 : 326}
+                  cy={phase === 'morning' ? 168 : phase === 'sunset' ? 198 : 144}
+                  r={phase === 'day' ? 32 : 36}
+                  fill={sky.sunColor}
+                />
+                <ellipse cx="94" cy="146" rx="46" ry="18" fill="#FFFFFF" opacity={phase === 'sunset' ? '0.55' : '0.88'} />
+                <ellipse cx="222" cy="126" rx="52" ry="20" fill="#FFFFFF" opacity={phase === 'sunset' ? '0.55' : '0.88'} />
+              </g>
+            )}
 
             <rect y="302" width="400" height="34" fill="#E7E5E4" stroke="#78716C" strokeWidth="2.5" />
             <rect y="274" width="400" height="28" fill="#BAE6FD" fillOpacity="0.45" stroke="#334155" strokeWidth="2" />
 
-            <rect y="336" width="400" height="464" fill="#A3D977" />
+            <rect y="336" width="400" height="464" fill={phase === 'night' ? '#4D7C0F' : '#A3D977'} />
             <rect x="18" y="352" width="168" height="132" rx="12" fill="url(#modernDeck)" stroke="#78350F" strokeWidth="2.5" />
             <rect x="172" y="512" width="64" height="26" rx="6" fill="#F5F5F4" stroke="#A8A29E" strokeWidth="2" />
             <rect x="186" y="556" width="64" height="26" rx="6" fill="#F5F5F4" stroke="#A8A29E" strokeWidth="2" />
@@ -1080,9 +1321,9 @@ function IllustratedRoomBackdrop({
             <g>
               <rect x="34" y="346" width="54" height="28" rx="6" fill="#57534E" stroke="#292524" strokeWidth="2.5" />
               <rect x="52" y="246" width="18" height="100" rx="6" fill="#78350F" />
-              <circle cx="62" cy="204" r="64" fill="#84CC16" />
-              <circle cx="108" cy="232" r="42" fill="#A3E635" />
-              <circle cx="24" cy="232" r="42" fill="#65A30D" />
+              <circle cx="62" cy="204" r="64" fill={phase === 'night' ? '#3F6212' : '#84CC16'} />
+              <circle cx="108" cy="232" r="42" fill={phase === 'night' ? '#4D7C0F' : '#A3E635'} />
+              <circle cx="24" cy="232" r="42" fill={phase === 'night' ? '#365314' : '#65A30D'} />
             </g>
 
             <g
@@ -1105,7 +1346,7 @@ function IllustratedRoomBackdrop({
             </g>
 
             <g>
-              <rect x="236" y="544" width="146" height="92" rx="14" fill="#7DD3FC" stroke="#44403C" strokeWidth="5" />
+              <rect x="236" y="544" width="146" height="92" rx="14" fill={phase === 'night' ? '#0284C7' : '#7DD3FC'} stroke="#44403C" strokeWidth="5" />
               <rect x="244" y="552" width="130" height="76" rx="8" fill="none" stroke="#BAE6FD" strokeWidth="2" />
               <ellipse cx="288" cy="590" rx="20" ry="11" fill="#4ADE80" />
               <text x="278" y="594" fontSize="20">🪷</text>
@@ -1113,7 +1354,13 @@ function IllustratedRoomBackdrop({
           </g>
         )}
 
-        {isSleeping && <rect width="400" height="800" fill="#0F172A" opacity="0.52" pointerEvents="none" />}
+        {/* Ambient Jakarta Time-of-Day Tint (Sunset warmth / Night dim) */}
+        {sky.ambientOpacity > 0 && (
+          <rect width="400" height="800" fill={sky.ambientTint} opacity={sky.ambientOpacity} pointerEvents="none" />
+        )}
+
+        {/* Bedroom Lamp Off Dim Overlay */}
+        {isSleeping && <rect width="400" height="800" fill="#0F172A" opacity="0.46" pointerEvents="none" />}
       </svg>
     </div>
   );
@@ -2707,16 +2954,60 @@ export default function App() {
   const audioRef = useRef(null);
   const musicIdleTimerRef = useRef(null);
 
+  // Auto-minimizing Pet Status Card (minimizes after 5s idle, expands when clicking pet)
+  const [statusExpanded, setStatusExpanded] = useState(true);
+  const statusIdleTimerRef = useRef(null);
+
   const walkTimeoutRef = useRef(null);
   const notifiedNeedsRef = useRef({});
   const lastRemoteRevRef = useRef(0);
+  const lastCareEventIdRef = useRef(null);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
     setTimeout(() => {
       setToast((curr) => (curr === msg ? null : curr));
-    }, 2400);
+    }, 2800);
   }, []);
+
+  const resetStatusIdleTimer = useCallback(() => {
+    if (statusIdleTimerRef.current) clearTimeout(statusIdleTimerRef.current);
+    statusIdleTimerRef.current = setTimeout(() => {
+      setStatusExpanded(false);
+    }, 5000);
+  }, []);
+
+  const expandStatusCard = useCallback(() => {
+    setStatusExpanded(true);
+    resetStatusIdleTimer();
+  }, [resetStatusIdleTimer]);
+
+  // Start 5s auto-minimize timer once signed in on Home tab
+  useEffect(() => {
+    if (!currentUser || activeTab !== 'home') return;
+    resetStatusIdleTimer();
+    return () => {
+      if (statusIdleTimerRef.current) clearTimeout(statusIdleTimerRef.current);
+    };
+  }, [currentUser, activeTab, resetStatusIdleTimer]);
+
+  // Helper to send cute & fun notifications to both Ronald & Ulfah
+  const triggerCutePartnerNotification = useCallback(
+    (title, body) => {
+      showToast(`${title} ${body}`);
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(title, { body });
+        } catch {
+          // Ignore browser notification restrictions
+        }
+      }
+    },
+    [showToast]
+  );
+
+  // Live Jakarta Time & Sky Lighting State
+  const jakartaTime = useMemo(() => getJakartaTimeInfo(now), [now]);
 
   // Load custom song list from public/music/tracks.json if present on GitHub/Vercel
   useEffect(() => {
@@ -2826,6 +3117,15 @@ export default function App() {
               } catch {
                 // Ignore storage write errors
               }
+              // Fire cute notification if partner just fed, bathed, or tucked pets into bed
+              const careEvt = remoteData.lastCareEvent;
+              if (careEvt && careEvt.id && careEvt.id !== lastCareEventIdRef.current) {
+                lastCareEventIdRef.current = careEvt.id;
+                if (Date.now() - (careEvt.timestamp || 0) < 30000) {
+                  playSfx('cuddle', muted);
+                  triggerCutePartnerNotification(careEvt.title, careEvt.body);
+                }
+              }
             }
           }
         } else {
@@ -2840,7 +3140,7 @@ export default function App() {
       }
     );
     return () => unsubscribe();
-  }, []);
+  }, [muted, triggerCutePartnerNotification]);
 
   // Request browser notification permission once signed in
   useEffect(() => {
@@ -2893,7 +3193,7 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // Real-time aging & stat tick
+  // Real-time aging, Jakarta clock & stat tick
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 2000);
     return () => clearInterval(id);
@@ -2903,55 +3203,156 @@ export default function App() {
     return world.pets[world.activePetId] || Object.values(world.pets)[0];
   }, [world]);
 
-  const activeSpecies = useMemo(() => getSpecies(activePet.speciesId), [activePet]);
-
   const companionPets = useMemo(() => {
-    return Object.values(world.pets)
-      .filter((p) => p.id !== activePet.id)
-      .slice(0, 2);
+    return Object.values(world.pets || {}).filter((p) => p.id !== activePet.id);
   }, [world.pets, activePet.id]);
 
+  const ageMs = Math.max(60000, now - (activePet.adoptedAt || now));
+  const growthInfo = useMemo(() => getGrowthStage(ageMs), [ageMs]);
+  const isRonald = currentUser === 'Ronald';
+  const canClaimDaily = world.lastDailyClaim !== getTodayKey();
+
   const liveStats = useMemo(() => {
-    const elapsedMins = Math.max(0, (now - activePet.lastUpdated) / 60000);
-    const basePotty = activePet.potty ?? 0;
-    if (activePet.isSleeping) {
-      return {
-        hunger: Math.round(clamp(activePet.hunger - elapsedMins * 0.12)),
-        happiness: Math.round(clamp(activePet.happiness + elapsedMins * 0.08)),
-        energy: Math.round(clamp(activePet.energy + elapsedMins * 1.25)),
-        hygiene: Math.round(clamp(activePet.hygiene - elapsedMins * 0.05)),
-        potty: Math.round(clamp(basePotty + elapsedMins * 0.4)),
-      };
-    }
-    return {
-      hunger: Math.round(clamp(activePet.hunger - elapsedMins * 0.32)),
-      happiness: Math.round(clamp(activePet.happiness - elapsedMins * 0.24)),
-      energy: Math.round(clamp(activePet.energy - elapsedMins * 0.28)),
-      hygiene: Math.round(clamp(activePet.hygiene - elapsedMins * 0.16)),
-      potty: Math.round(clamp(basePotty + elapsedMins * 1.4)),
-    };
+    const elapsedMins = Math.max(0, (now - (activePet.lastUpdated || now)) / 60000);
+    const hunger = clamp(Math.round(activePet.hunger - elapsedMins * 0.45));
+    const happiness = clamp(Math.round(activePet.happiness - elapsedMins * 0.35));
+    const hygiene = clamp(Math.round(activePet.hygiene - elapsedMins * 0.3));
+    const energy = activePet.isSleeping
+      ? clamp(Math.round(activePet.energy + elapsedMins * 1.6))
+      : clamp(Math.round(activePet.energy - elapsedMins * 0.4));
+    const potty = clamp(Math.round((activePet.potty ?? 0) + elapsedMins * 0.4));
+    return { hunger, happiness, energy, hygiene, potty };
   }, [activePet, now]);
 
-  const needsPoop = liveStats.potty >= 65;
+  const needsPoop = liveStats.potty >= 60;
 
-  const ageMs = Math.max(60000, now - activePet.adoptedAt);
-  const growthInfo = useMemo(() => getGrowthStage(ageMs), [ageMs]);
-  const canClaimDaily = world.lastDailyClaim !== getTodayKey();
-  const isRonald = currentUser === 'Ronald';
+  const movePetTo = useCallback((x, y, durationMs = 850) => {
+    setPetPos((prev) => {
+      if (Math.abs(x - prev.x) > 1.5) {
+        setPetFacing(x >= prev.x ? 1 : -1);
+      }
+      return { x, y };
+    });
+    setIsWalking(true);
+    if (walkTimeoutRef.current) clearTimeout(walkTimeoutRef.current);
+    walkTimeoutRef.current = setTimeout(() => {
+      setIsWalking(false);
+    }, durationMs);
+  }, []);
 
-  // Helper to walk pet smoothly to coordinates
-  const movePetTo = useCallback(
-    (targetX, targetY, duration = 950) => {
-      setPetPos((prev) => {
-        if (targetX < prev.x - 1) setPetFacing(-1);
-        else if (targetX > prev.x + 1) setPetFacing(1);
-        return { x: targetX, y: targetY };
+  // Auto-wake check based on Jakarta schedule (05:00-06:00 WIB for night sleep, 15m for naps)
+  useEffect(() => {
+    const petsList = Object.values(world.pets || {});
+    const dueToWake = petsList.some((p) => p.isSleeping && p.wakeAt && now >= p.wakeAt);
+    if (!dueToWake) return;
+
+    const firstPet = petsList.find((p) => p.isSleeping) || Object.values(world.pets)[0];
+    const petCount = petsList.length;
+    setIsPetOnBed(false);
+    movePetTo(48, 66, 750);
+
+    updateWorld((prev) => {
+      const nextPets = {};
+      Object.entries(prev.pets).forEach(([pid, pet]) => {
+        nextPets[pid] = {
+          ...pet,
+          isSleeping: false,
+          wakeAt: null,
+          energy: clamp((pet.energy ?? 80) + 18),
+          lastUpdated: Date.now(),
+        };
       });
-      setIsWalking(true);
-      if (walkTimeoutRef.current) clearTimeout(walkTimeoutRef.current);
-      walkTimeoutRef.current = setTimeout(() => setIsWalking(false), duration);
+      return {
+        ...prev,
+        pets: nextPets,
+        activities: [
+          {
+            id: Math.random().toString(36).slice(2),
+            actor: petCount > 1 ? 'Your pets' : firstPet.name,
+            text: 'stretched their paws and woke up refreshed! ☀️',
+            emoji: '☀️',
+            timestamp: Date.now(),
+          },
+          ...(prev.activities || []),
+        ].slice(0, 40),
+      };
+    });
+
+    triggerCutePartnerNotification(
+      `☀️ Rise & Shine!`,
+      petCount > 1
+        ? `All your pets just woke up full of energy!`
+        : `${firstPet.name} just woke up full of energy!`
+    );
+  }, [now, world.pets, movePetTo, triggerCutePartnerNotification, updateWorld]);
+
+  // Commit pet updates + activity log + cute couple care notification
+  const commitPetUpdate = useCallback(
+    (mutatePet, coinDelta = 0, logText = null, emoji = '✨', applyToAll = false, careNotif = null) => {
+      const careEventObj = careNotif
+        ? {
+            id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            actor: currentUser || 'Ronald & Ulfah',
+            title: careNotif.title,
+            body: careNotif.body,
+            timestamp: Date.now(),
+          }
+        : null;
+
+      if (careEventObj) {
+        lastCareEventIdRef.current = careEventObj.id;
+      }
+
+      updateWorld((prev) => {
+        const nextPets = { ...prev.pets };
+        const targetIds = applyToAll ? Object.keys(prev.pets) : [prev.activePetId];
+
+        targetIds.forEach((pid) => {
+          const pet = prev.pets[pid];
+          if (!pet) return;
+          const isPrimary = pid === prev.activePetId;
+          const basePet = {
+            ...pet,
+            hunger: isPrimary ? liveStats.hunger : pet.hunger,
+            happiness: isPrimary ? liveStats.happiness : pet.happiness,
+            energy: isPrimary ? liveStats.energy : pet.energy,
+            hygiene: isPrimary ? liveStats.hygiene : pet.hygiene,
+            potty: isPrimary ? liveStats.potty : (pet.potty ?? 0),
+          };
+          nextPets[pid] = {
+            ...basePet,
+            ...(mutatePet ? mutatePet(basePet) : {}),
+            lastUpdated: Date.now(),
+          };
+        });
+
+        const nextActivities = logText
+          ? [
+              {
+                id: Math.random().toString(36).slice(2),
+                actor: currentUser || 'Ronald & Ulfah',
+                text: logText,
+                emoji,
+                timestamp: Date.now(),
+              },
+              ...(prev.activities || []),
+            ].slice(0, 40)
+          : prev.activities || [];
+
+        return {
+          ...prev,
+          coins: Math.max(0, prev.coins + coinDelta),
+          pets: nextPets,
+          activities: nextActivities,
+          ...(careEventObj ? { lastCareEvent: careEventObj } : {}),
+        };
+      });
+
+      if (careEventObj) {
+        triggerCutePartnerNotification(careEventObj.title, careEventObj.body);
+      }
     },
-    []
+    [currentUser, liveStats, triggerCutePartnerNotification, updateWorld]
   );
 
   // Monitor Hungry, Sleepy, Bath, and Bored states & fire notifications
@@ -3054,56 +3455,6 @@ export default function App() {
     return () => clearInterval(wander);
   }, [currentUser, activeTab, activePet.isSleeping, droppedItem, isPetOnBed, isPooping, isSittingAtTable, movePetTo]);
 
-  // Commit pet updates + activity log
-  const commitPetUpdate = useCallback(
-    (mutatePet, coinDelta = 0, logText = null, emoji = '✨', applyToAll = false) => {
-      updateWorld((prev) => {
-        const nextPets = { ...prev.pets };
-        const targetIds = applyToAll ? Object.keys(prev.pets) : [prev.activePetId];
-
-        targetIds.forEach((pid) => {
-          const pet = prev.pets[pid];
-          if (!pet) return;
-          const isPrimary = pid === prev.activePetId;
-          const basePet = {
-            ...pet,
-            hunger: isPrimary ? liveStats.hunger : pet.hunger,
-            happiness: isPrimary ? liveStats.happiness : pet.happiness,
-            energy: isPrimary ? liveStats.energy : pet.energy,
-            hygiene: isPrimary ? liveStats.hygiene : pet.hygiene,
-            potty: isPrimary ? liveStats.potty : (pet.potty ?? 0),
-          };
-          nextPets[pid] = {
-            ...basePet,
-            ...(mutatePet ? mutatePet(basePet) : {}),
-            lastUpdated: Date.now(),
-          };
-        });
-
-        const nextActivities = logText
-          ? [
-              {
-                id: Math.random().toString(36).slice(2),
-                actor: currentUser || 'Ronald & Ulfah',
-                text: logText,
-                emoji,
-                timestamp: Date.now(),
-              },
-              ...(prev.activities || []),
-            ].slice(0, 40)
-          : prev.activities || [];
-
-        return {
-          ...prev,
-          coins: Math.max(0, prev.coins + coinDelta),
-          pets: nextPets,
-          activities: nextActivities,
-        };
-      });
-    },
-    [currentUser, liveStats, updateWorld]
-  );
-
   // Helper to close food drawer & return pets from dining chairs to normal floor
   const handleCloseFoodDrawer = useCallback(() => {
     setShowFoodDrawer(false);
@@ -3129,8 +3480,10 @@ export default function App() {
 
   const handleCuddlePet = (e) => {
     e.stopPropagation();
+    expandStatusCard();
     if (activePet.isSleeping) {
-      showToast(`${activePet.name} is dreaming sweetly... 💤`);
+      const wakeStr = activePet.wakeAt ? ` (wakes ~${formatWakeTimeWIB(activePet.wakeAt)} WIB)` : '';
+      showToast(`${activePet.name} is dreaming sweetly... 💤${wakeStr}`);
       return;
     }
     playSfx('cuddle', muted);
@@ -3179,6 +3532,14 @@ export default function App() {
       }, 1100);
     }, 520);
 
+    const cuteFeedNotif = {
+      title: `${food.emoji} Yummy Snack Time!`,
+      body:
+        petCount > 1
+          ? `${currentUser} fed all the babies ${food.name}! Nom nom nom~ 💕`
+          : `${currentUser} fed ${activePet.name} a yummy ${food.name}! Nom nom~ 💕`,
+    };
+
     commitPetUpdate(
       (p) => ({
         hunger: clamp(p.hunger + food.hunger),
@@ -3190,12 +3551,8 @@ export default function App() {
         ? `fed all pets ${food.name} ${food.emoji} at the dining table!`
         : `fed ${activePet.name} ${food.name} ${food.emoji}`,
       food.emoji,
-      true
-    );
-    showToast(
-      petCount > 1
-        ? `All pets loved the ${food.name}! 🍽️💖`
-        : `${activePet.name} loved the ${food.name}!`
+      true,
+      cuteFeedNotif
     );
   };
 
@@ -3230,6 +3587,18 @@ export default function App() {
       }, 1100);
     }, 520);
 
+    const cuteCookedNotif = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      actor: currentUser,
+      title: `👨‍🍳 Chef ${currentUser} Served Dinner!`,
+      body:
+        petCount > 1
+          ? `${currentUser} served homemade ${recipe.name} ${recipe.emoji} to all pets! So spoilt~ 💖`
+          : `${currentUser} served homemade ${recipe.name} ${recipe.emoji} to ${activePet.name}! 💖`,
+      timestamp: Date.now(),
+    };
+    lastCareEventIdRef.current = cuteCookedNotif.id;
+
     updateWorld((prev) => {
       const nextCount = Math.max(0, (prev.cookedInventory?.[recipe.id] || 0) - 1);
       const nextPets = {};
@@ -3254,6 +3623,7 @@ export default function App() {
         ...prev,
         cookedInventory: { ...(prev.cookedInventory || {}), [recipe.id]: nextCount },
         pets: nextPets,
+        lastCareEvent: cuteCookedNotif,
         activities: [
           {
             id: Math.random().toString(36).slice(2),
@@ -3269,17 +3639,17 @@ export default function App() {
         ].slice(0, 40),
       };
     });
-    showToast(
-      petCount > 1
-        ? `Everyone devoured your homemade ${recipe.name}! 🍳💖`
-        : `${activePet.name} devoured your homemade ${recipe.name}! 🍳💖`
-    );
+    triggerCutePartnerNotification(cuteCookedNotif.title, cuteCookedNotif.body);
   };
 
   const handleToggleSleep = () => {
     const nextSleep = !activePet.isSleeping;
     const petCount = Object.keys(world.pets).length;
     playSfx('sleep', muted);
+    const wakeAtMs = nextSleep ? computeJakartaWakeAt(Date.now()) : null;
+    const wakeFormatted = wakeAtMs ? formatWakeTimeWIB(wakeAtMs) : '';
+    const isNightSleep = jakartaTime.hour >= 20 || jakartaTime.hour < 4;
+
     if (nextSleep) {
       setCurrentRoom('bedroom');
       setIsPetOnBed(true);
@@ -3287,31 +3657,100 @@ export default function App() {
       setIsPetOnBed(false);
       movePetTo(48, 66, 750);
     }
+
+    const cuteSleepNotif = nextSleep
+      ? {
+          title: isNightSleep ? `🌙 Sweet Dreams, Babies!` : `😴 Cozy 15-Min Nap Time!`,
+          body: isNightSleep
+            ? `${currentUser} tucked ${petCount > 1 ? 'everyone' : activePet.name} into bed! Waking up at ${wakeFormatted} WIB 💤`
+            : `${currentUser} put ${petCount > 1 ? 'everyone' : activePet.name} down for a 15m nap (wakes ${wakeFormatted} WIB) 🧸`,
+        }
+      : {
+          title: `☀️ Good Morning Sunshine!`,
+          body: `${currentUser} woke ${petCount > 1 ? 'all the pets' : activePet.name} up for cuddles!`,
+        };
+
     commitPetUpdate(
       (p) => ({
         isSleeping: nextSleep,
+        wakeAt: wakeAtMs,
         energy: nextSleep ? p.energy : clamp(p.energy + 12),
       }),
       0,
       nextSleep
         ? petCount > 1
-          ? `tucked all pets into bed for the night.`
-          : `tucked ${activePet.name} into bed for the night.`
+          ? `tucked all pets into bed (wakes at ${wakeFormatted} WIB).`
+          : `tucked ${activePet.name} into bed (wakes at ${wakeFormatted} WIB).`
         : petCount > 1
         ? `woke all pets up for a sunny new day!`
         : `woke ${activePet.name} up for a sunny new day!`,
       nextSleep ? '🌙' : '☀️',
-      true
+      true,
+      cuteSleepNotif
     );
-    showToast(
-      nextSleep
-        ? petCount > 1
-          ? `Goodnight, everyone! 🌙`
-          : `Goodnight, ${activePet.name}! 🌙`
-        : petCount > 1
-        ? `Good morning, everyone! ☀️`
-        : `Good morning, ${activePet.name}! ☀️`
-    );
+  };
+
+  const handleCompleteCook = (recipe, bonusCoins = 0) => {
+    playSfx('coin', muted);
+    setShowCookModal(false);
+    setCurrentRoom('dining');
+    setShowFoodDrawer(true);
+    setIsSittingAtTable(true);
+    setIsPetOnBed(false);
+    movePetTo(22, 54, 700);
+    setTimeout(() => setPetFacing(1), 650);
+
+    updateWorld((prev) => ({
+      ...prev,
+      coins: Math.max(0, prev.coins - recipe.ingredientCost + bonusCoins),
+      cookedInventory: {
+        ...(prev.cookedInventory || {}),
+        [recipe.id]: (prev.cookedInventory?.[recipe.id] || 0) + 1,
+      },
+      activities: [
+        {
+          id: Math.random().toString(36).slice(2),
+          actor: currentUser,
+          text: `cooked homemade ${recipe.name} ${recipe.emoji} on the stove!`,
+          emoji: '🍳',
+          timestamp: Date.now(),
+        },
+        ...(prev.activities || []),
+      ].slice(0, 40),
+    }));
+    showToast(`${recipe.name} ${recipe.emoji} added to your Food Menu!`);
+  };
+
+  const handleToiletClick = () => {
+    if (activeTab !== 'home' || isPooping) return;
+    if (activePet.isSleeping) {
+      showToast(`Wake ${activePet.name} up before potty time!`);
+      return;
+    }
+    setIsPetOnBed(false);
+    setIsPooping(true);
+    movePetTo(16, 42, 700);
+
+    setTimeout(() => {
+      playSfx('flush', muted);
+    }, 950);
+
+    setTimeout(() => {
+      setIsPooping(false);
+      setIsHappy(true);
+      movePetTo(46, 66, 750);
+      setTimeout(() => setIsHappy(false), 900);
+      commitPetUpdate(
+        () => ({
+          potty: 0,
+          happiness: clamp(liveStats.happiness + 10),
+        }),
+        5,
+        `helped ${activePet.name} use the toilet and flushed! (+5🪙)`,
+        '🚽'
+      );
+      showToast(`${activePet.name} feels all better! +5🪙 🚽✨`);
+    }, 1900);
   };
 
   const handleBedClick = (bedIndex = 0) => {
@@ -3358,72 +3797,17 @@ export default function App() {
     playSfx('coin', muted);
     setShowBathGame(false);
     movePetTo(64, 66, 750);
+    const cuteBathNotif = {
+      title: `🫧 Squeaky Clean & Fluffy!`,
+      body: `${currentUser} gave ${activePet.name} a bubbly spa bath! Smells like strawberries~ ✨`,
+    };
     commitPetUpdate(
       () => ({ hygiene: 100, happiness: clamp(liveStats.happiness + 14) }),
       10,
       `scrubbed & rinsed ${activePet.name} in a bubble bath! (+10🪙)`,
-      '🫧'
-    );
-    showToast(`${activePet.name} is sparkling clean! +10🪙 ✨`);
-  };
-
-  const handleToiletClick = () => {
-    if (activeTab !== 'home' || isPooping) return;
-    if (activePet.isSleeping) {
-      showToast(`Wake ${activePet.name} up for potty time!`);
-      return;
-    }
-    setCurrentRoom('bathroom');
-    setIsPetOnBed(false);
-    setIsPooping(true);
-    movePetTo(14, 37, 700);
-    showToast(`${activePet.name} is taking a dump... 💩`);
-
-    setTimeout(() => {
-      playSfx('flush', muted);
-      commitPetUpdate(
-        () => ({
-          potty: 0,
-          happiness: clamp(liveStats.happiness + 10),
-          hygiene: clamp(liveStats.hygiene + 5),
-        }),
-        5,
-        `took ${activePet.name} to the toilet for poop time! (+5🪙)`,
-        '🚽'
-      );
-      setIsPooping(false);
-      movePetTo(46, 66, 750);
-      showToast(`Flush! ${activePet.name} feels so relieved! 🚽✨ (+5🪙)`);
-    }, 2000);
-  };
-
-  const handleCompleteCook = (recipe, tipCoins = 0) => {
-    setShowCookModal(false);
-    updateWorld((prev) => {
-      const nextCount = (prev.cookedInventory?.[recipe.id] || 0) + 1;
-      return {
-        ...prev,
-        coins: Math.max(0, prev.coins - recipe.ingredientCost + tipCoins),
-        cookedInventory: {
-          ...(prev.cookedInventory || {}),
-          [recipe.id]: nextCount,
-        },
-        activities: [
-          {
-            id: Math.random().toString(36).slice(2),
-            actor: currentUser,
-            text: `cooked homemade ${recipe.name} ${recipe.emoji}${tipCoins ? ` (+${tipCoins}🪙 Master Chef tip!)` : '!'}`,
-            emoji: '👨‍🍳',
-            timestamp: Date.now(),
-          },
-          ...(prev.activities || []),
-        ].slice(0, 40),
-      };
-    });
-    showToast(
-      tipCoins > 0
-        ? `Cooked ${recipe.name} +${tipCoins}🪙 tip! Open Dining Table to serve 🍽️`
-        : `Cooked ${recipe.name}! Open Dining Table to serve 🍽️`
+      '🫧',
+      false,
+      cuteBathNotif
     );
   };
 
@@ -3720,7 +4104,7 @@ export default function App() {
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#F7EFE4] border border-[#E6D8C5] text-[#8C5E3C] text-[10px] font-extrabold tracking-[0.14em] uppercase">
             <span>Est. Together</span>
             <span>•</span>
-            <span>Shared Home</span>
+            <span>{jakartaTime.skyPalette.icon} {jakartaTime.formattedTime} WIB</span>
           </div>
 
           <div className="flex justify-center -my-1">
@@ -3799,6 +4183,7 @@ export default function App() {
           <IllustratedRoomBackdrop
             roomId={currentRoom}
             isSleeping={activePet.isSleeping && currentRoom === 'bedroom'}
+            jakartaTime={jakartaTime}
             isPetOnBed={isPetOnBed}
             showHints={showRoomHints}
             onSofaClick={() => {
@@ -3997,26 +4382,40 @@ export default function App() {
 
         {/* TOP TRANSLUCENT STATUS BAR */}
         <header className="relative z-30 flex items-center justify-between px-3.5 pt-3.5 pb-1.5">
-          <button
-            onClick={() => handleSelectUser(null)}
-            className={`inline-flex items-center gap-1.5 pl-2 pr-3 py-1 rounded-full text-xs font-extrabold active:translate-y-0.5 transition ${glassPill}`}
-            title="Switch between Ronald & Ulfah"
-          >
-            <CoupleAvatar player={currentUser} size={22} />
-            <span>{currentUser}</span>
-            {cloudStatus === 'live' && (
-              <span className="w-2 h-2 rounded-full bg-emerald-500" title="Live synced between Ronald & Ulfah" />
-            )}
-          </button>
-
           <div className="flex items-center gap-1.5">
-            <div className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-extrabold ${glassPill}`}>
+            <button
+              onClick={() => handleSelectUser(null)}
+              className={`inline-flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full text-xs font-extrabold active:translate-y-0.5 transition ${glassPill}`}
+              title="Switch between Ronald & Ulfah"
+            >
+              <CoupleAvatar player={currentUser} size={22} />
+              <span>{currentUser}</span>
+              {cloudStatus === 'live' && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500" title="Live synced between Ronald & Ulfah" />
+              )}
+            </button>
+
+            {/* LIVE JAKARTA CLOCK PILL (WIB) */}
+            <div
+              onClick={() =>
+                showToast(`Jakarta Time: ${jakartaTime.formattedTime} WIB (${jakartaTime.skyPalette.label})`)
+              }
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold cursor-pointer active:scale-95 transition ${
+                jakartaTime.isNight
+                  ? 'bg-[#1E293B]/90 backdrop-blur-md border-[1.5px] border-[#475569] text-[#F8FAFC] shadow-[0_3px_0_#0F172A]'
+                  : glassPill
+              }`}
+              title="Real-time Jakarta (WIB) Clock"
+            >
+              <span>{jakartaTime.skyPalette.icon}</span>
+              <span className="tabular-nums">{jakartaTime.formattedTime}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-extrabold ${glassPill}`}>
               <span>🪙</span>
               <span>{world.coins}</span>
-            </div>
-            <div className={`inline-flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-extrabold ${glassPill}`}>
-              <Flame className="w-3.5 h-3.5 text-[#E06D3B] fill-[#F4A261]" />
-              <span>{world.streak || 1}</span>
             </div>
             <button
               onClick={() => setActiveTab('leaderboard')}
@@ -4128,130 +4527,143 @@ export default function App() {
                     </div>
                   </div>
                   <button
-                    onClick={activeNeedAlert.onAction}
-                    className="px-2.5 py-1 rounded-full bg-[#D95D78] text-white text-[10px] font-extrabold shrink-0 active:scale-95 transition"
+                    onClick={() => {
+                      playSfx('cuddle', muted);
+                      activeNeedAlert.onAction();
+                    }}
+                    className="px-3 py-1 rounded-full bg-[#D95D78] text-white text-[10px] font-extrabold shrink-0 active:scale-95 transition"
                   >
                     {activeNeedAlert.actionLabel}
                   </button>
                 </div>
               )}
 
-              {canClaimDaily && (
-                <button
-                  onClick={handleClaimDailyBonus}
-                  className="w-full px-3.5 py-2 rounded-2xl bg-[#FFF4D9] border-2 border-[#E7C27D] text-[#5C3D1E] shadow-[0_3px_0_#E7C27D] flex items-center justify-between text-[11px] font-extrabold active:translate-y-0.5 transition"
-                >
-                  <span>🎁 Daily Couple Gift (+{DAILY_BONUS_COINS}🪙)</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#E08E35] text-white text-[10px]">Claim</span>
-                </button>
-              )}
+              <div className="transition-all duration-300">
+                {!statusExpanded ? (
+                  <button
+                    onClick={expandStatusCard}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full active:scale-95 transition ${glassPill}`}
+                    title="Tap to expand status"
+                  >
+                    <span className="serif-display text-xs font-bold text-[#3B2618]">{activePet.name}</span>
+                    <span className="text-[10px] font-extrabold text-[#E68A47]">🍓{liveStats.hunger}%</span>
+                    <span className="text-[10px] font-extrabold text-[#DF6A84]">💖{liveStats.happiness}%</span>
+                    <span className="text-[10px] font-extrabold text-[#DFB048]">⚡{liveStats.energy}%</span>
+                    <span className="text-[10px] font-extrabold text-[#5BA4CF]">🫧{liveStats.hygiene}%</span>
+                  </button>
+                ) : (
+                  <div
+                    onMouseMove={resetStatusIdleTimer}
+                    onTouchStart={resetStatusIdleTimer}
+                    className={`rounded-[26px] px-3.5 py-2.5 space-y-2 ${glassPill}`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {isEditingName ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              value={nameInput}
+                              onChange={(e) => setNameInput(e.target.value)}
+                              maxLength={16}
+                              className="w-24 px-2 py-0.5 text-xs font-bold rounded-lg border border-[#D95D78] text-[#3B2618] bg-white focus:outline-none"
+                              autoFocus
+                            />
+                            <button onClick={handleSavePetName} className="p-1 rounded-lg bg-[#4D9E6A] text-white">
+                              <Check className="w-3 h-3" />
+                            </button>
+                            <button onClick={() => setIsEditingName(false)} className="p-1 rounded-lg bg-[#EAE0D2] text-[#5C3D2E]">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="serif-display text-[15px] font-bold truncate text-[#3B2618]">{activePet.name}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F5ECE0] border border-[#E6D8C5] text-[#7A5438] shrink-0">
+                              {growthInfo.stage} · {formatAge(ageMs)}
+                            </span>
+                            <span className="text-[10px] font-extrabold text-[#C88A2E] shrink-0">
+                              ★{activePet.stars || 1}
+                            </span>
+                            {activePet.isSleeping && (
+                              <button
+                                onClick={() => handleSwitchRoom('bedroom')}
+                                className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[#E8ECF8] text-[#3C4B7A] border border-[#C6D0EC] shrink-0 active:scale-95 transition"
+                                title="Go to Bedroom"
+                              >
+                                🌙 {activePet.wakeAt ? `Wakes ${formatWakeTimeWIB(activePet.wakeAt)}` : 'In Bed'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
 
-              <div className={`rounded-[26px] px-3.5 py-2.5 space-y-2 ${glassPill}`}>
-                <div className="flex items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    {isEditingName ? (
-                      <div className="flex items-center gap-1">
+                      {!isEditingName && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              setNameInput(activePet.name);
+                              setIsEditingName(true);
+                            }}
+                            className="p-1.5 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#6E4D37] transition"
+                            title="Rename pet"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setNoteInput(world.loveNote?.text || '');
+                              setIsEditingNote((v) => !v);
+                            }}
+                            className="p-1.5 rounded-full bg-[#FDECEF] hover:bg-[#FAD9DF] text-[#D95D78] transition"
+                            title="Pin couple love note"
+                          >
+                            <Heart className="w-3 h-3 fill-[#D95D78]" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { icon: '🍓', val: liveStats.hunger, color: 'bg-[#E68A47]' },
+                        { icon: '💖', val: liveStats.happiness, color: 'bg-[#DF6A84]' },
+                        { icon: '⚡', val: liveStats.energy, color: 'bg-[#DFB048]' },
+                        { icon: '🫧', val: liveStats.hygiene, color: 'bg-[#5BA4CF]' },
+                      ].map((st, i) => (
+                        <div key={i} className="space-y-1">
+                          <div className="flex items-center justify-between text-[9.5px] font-extrabold text-[#6E4D37]">
+                            <span>{st.icon}</span>
+                            <span>{st.val}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-[#EFE6D8] overflow-hidden">
+                            <div className={`h-full rounded-full ${st.color}`} style={{ width: `${st.val}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {isEditingNote ? (
+                      <div className="flex items-center gap-1.5 pt-0.5">
                         <input
-                          value={nameInput}
-                          onChange={(e) => setNameInput(e.target.value)}
-                          maxLength={16}
-                          className="w-24 px-2 py-0.5 text-xs font-bold rounded-lg border border-[#D95D78] text-[#3B2618] bg-white focus:outline-none"
+                          value={noteInput}
+                          onChange={(e) => setNoteInput(e.target.value)}
+                          placeholder={`Note for ${isRonald ? 'Ulfah' : 'Ronald'}...`}
+                          maxLength={90}
+                          className="flex-1 px-2.5 py-1 rounded-xl border border-[#E6D8C5] text-[11px] font-semibold text-[#3B2618] bg-white focus:outline-none"
                           autoFocus
                         />
-                        <button onClick={handleSavePetName} className="p-1 rounded-lg bg-[#4D9E6A] text-white">
-                          <Check className="w-3 h-3" />
-                        </button>
-                        <button onClick={() => setIsEditingName(false)} className="p-1 rounded-lg bg-[#EAE0D2] text-[#5C3D2E]">
-                          <X className="w-3 h-3" />
+                        <button onClick={handleSaveLoveNote} className="p-1.5 rounded-xl bg-[#D95D78] text-white">
+                          <Send className="w-3 h-3" />
                         </button>
                       </div>
                     ) : (
-                      <>
-                        <span className="serif-display text-[15px] font-bold truncate text-[#3B2618]">{activePet.name}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F5ECE0] border border-[#E6D8C5] text-[#7A5438] shrink-0">
-                          {growthInfo.stage} · {formatAge(ageMs)}
-                        </span>
-                        <span className="text-[10px] font-extrabold text-[#C88A2E] shrink-0">
-                          ★{activePet.stars || 1}
-                        </span>
-                        {activePet.isSleeping && currentRoom !== 'bedroom' && (
-                          <button
-                            onClick={() => handleSwitchRoom('bedroom')}
-                            className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[#E8ECF8] text-[#3C4B7A] border border-[#C6D0EC] shrink-0 active:scale-95 transition"
-                            title="Go to Bedroom"
-                          >
-                            🌙 In Bed
-                          </button>
-                        )}
-                      </>
+                      world.loveNote?.text && (
+                        <p className="text-[10px] font-semibold text-[#7A5438] truncate">
+                          💌 &ldquo;{world.loveNote.text}&rdquo; — <span className="font-bold">{world.loveNote.author}</span>
+                        </p>
+                      )
                     )}
                   </div>
-
-                  {!isEditingName && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => {
-                          setNameInput(activePet.name);
-                          setIsEditingName(true);
-                        }}
-                        className="p-1.5 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#6E4D37] transition"
-                        title="Rename pet"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setNoteInput(world.loveNote?.text || '');
-                          setIsEditingNote((v) => !v);
-                        }}
-                        className="p-1.5 rounded-full bg-[#FDECEF] hover:bg-[#FAD9DF] text-[#D95D78] transition"
-                        title="Pin couple love note"
-                      >
-                        <Heart className="w-3 h-3 fill-[#D95D78]" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { icon: '🍓', val: liveStats.hunger, color: 'bg-[#E68A47]' },
-                    { icon: '💖', val: liveStats.happiness, color: 'bg-[#DF6A84]' },
-                    { icon: '⚡', val: liveStats.energy, color: 'bg-[#DFB048]' },
-                    { icon: '🫧', val: liveStats.hygiene, color: 'bg-[#5BA4CF]' },
-                  ].map((st, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex items-center justify-between text-[9.5px] font-extrabold text-[#6E4D37]">
-                        <span>{st.icon}</span>
-                        <span>{st.val}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-[#EFE6D8] overflow-hidden">
-                        <div className={`h-full rounded-full ${st.color}`} style={{ width: `${st.val}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {isEditingNote ? (
-                  <div className="flex items-center gap-1.5 pt-0.5">
-                    <input
-                      value={noteInput}
-                      onChange={(e) => setNoteInput(e.target.value)}
-                      placeholder={`Note for ${isRonald ? 'Ulfah' : 'Ronald'}...`}
-                      maxLength={90}
-                      className="flex-1 px-2.5 py-1 rounded-xl border border-[#E6D8C5] text-[11px] font-semibold text-[#3B2618] bg-white focus:outline-none"
-                      autoFocus
-                    />
-                    <button onClick={handleSaveLoveNote} className="p-1.5 rounded-xl bg-[#D95D78] text-white">
-                      <Send className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  world.loveNote?.text && (
-                    <p className="text-[10px] font-semibold text-[#7A5438] truncate">
-                      💌 &ldquo;{world.loveNote.text}&rdquo; — <span className="font-bold">{world.loveNote.author}</span>
-                    </p>
-                  )
                 )}
               </div>
             </div>
