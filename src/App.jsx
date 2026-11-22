@@ -3020,8 +3020,19 @@ export default function App() {
   const [trackIndex, setTrackIndex] = useState(0);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [musicExpanded, setMusicExpanded] = useState(false);
+  const [musicVolume, setMusicVolume] = useState(() => {
+    try {
+      const savedVol = localStorage.getItem('ronald_ulfah_music_vol_v1');
+      if (savedVol !== null) return Math.min(100, Math.max(0, Number(savedVol)));
+    } catch {
+      // Ignore storage errors
+    }
+    return 75;
+  });
   const audioRef = useRef(null);
   const fireplaceAudioRef = useRef(null);
+  const morningAudioRef = useRef(null);
+  const nightAudioRef = useRef(null);
   const musicIdleTimerRef = useRef(null);
   const wasPlayingBeforeMinimizeRef = useRef(false);
 
@@ -3058,6 +3069,12 @@ export default function App() {
         if (fireplaceAudioRef.current) {
           fireplaceAudioRef.current.pause();
         }
+        if (morningAudioRef.current) {
+          morningAudioRef.current.pause();
+        }
+        if (nightAudioRef.current) {
+          nightAudioRef.current.pause();
+        }
         if (sharedAudioCtx && sharedAudioCtx.state === 'running') {
           sharedAudioCtx.suspend().catch(() => {});
         }
@@ -3068,6 +3085,7 @@ export default function App() {
         }
         if (wasPlayingBeforeMinimizeRef.current && audioRef.current && !muted) {
           wasPlayingBeforeMinimizeRef.current = false;
+          audioRef.current.volume = musicVolume / 100;
           audioRef.current
             .play()
             .then(() => setIsPlayingMusic(true))
@@ -3080,6 +3098,8 @@ export default function App() {
       setIsAppMinimized(true);
       if (audioRef.current) audioRef.current.pause();
       if (fireplaceAudioRef.current) fireplaceAudioRef.current.pause();
+      if (morningAudioRef.current) morningAudioRef.current.pause();
+      if (nightAudioRef.current) nightAudioRef.current.pause();
       setIsPlayingMusic(false);
     };
 
@@ -3089,8 +3109,7 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handlePageHide);
     };
-  }, [muted]);
-
+  }, [muted, musicVolume]);
   const resetStatusIdleTimer = useCallback(() => {
     if (statusIdleTimerRef.current) clearTimeout(statusIdleTimerRef.current);
     statusIdleTimerRef.current = setTimeout(() => {
@@ -3178,7 +3197,7 @@ export default function App() {
       setIsPlayingMusic(false);
     } else {
       audio.muted = false;
-      audio.volume = 0.85;
+      audio.volume = musicVolume / 100;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise
@@ -3192,7 +3211,20 @@ export default function App() {
           });
       }
     }
-  }, [isPlayingMusic, resetMusicIdleTimer, showToast]);
+  }, [isPlayingMusic, musicVolume, resetMusicIdleTimer, showToast]);
+
+  const handleChangeMusicVolume = useCallback((newVal) => {
+    const clamped = Math.min(100, Math.max(0, Number(newVal)));
+    setMusicVolume(clamped);
+    if (audioRef.current) {
+      audioRef.current.volume = clamped / 100;
+    }
+    try {
+      localStorage.setItem('ronald_ulfah_music_vol_v1', String(clamped));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
 
   const handleSkipTrack = useCallback(() => {
     resetMusicIdleTimer();
@@ -3202,13 +3234,14 @@ export default function App() {
     setTimeout(() => {
       const audio = audioRef.current;
       if (audio && !document.hidden) {
+        audio.volume = musicVolume / 100;
         audio
           .play()
           .then(() => setIsPlayingMusic(true))
           .catch(() => setIsPlayingMusic(false));
       }
     }, 60);
-  }, [playlist.length, resetMusicIdleTimer, trackIndex]);
+  }, [musicVolume, playlist.length, resetMusicIdleTimer, trackIndex]);
 
   const handleStopMusic = useCallback(() => {
     resetMusicIdleTimer();
@@ -3295,7 +3328,7 @@ export default function App() {
     };
 
     if (fpAudio) {
-      fpAudio.volume = 0.55;
+      fpAudio.volume = 0.75;
       fpAudio.play().catch(() => {
         startFallback();
       });
@@ -3308,6 +3341,39 @@ export default function App() {
       if (fallbackInterval) clearInterval(fallbackInterval);
     };
   }, [currentUser, activeTab, currentRoom, muted, isAppMinimized, showCookModal]);
+
+  // Ambient Morning (/music/morning.mp3) & Night (/music/night.mp3) Environment SFX (0.75 volume)
+  useEffect(() => {
+    const mAudio = morningAudioRef.current;
+    const nAudio = nightAudioRef.current;
+    const canPlayEnv = Boolean(currentUser && activeTab === 'home' && !muted && !isAppMinimized);
+
+    const shouldPlayMorning = canPlayEnv && jakartaTime.phase === 'morning';
+    const shouldPlayNight = canPlayEnv && jakartaTime.phase === 'night';
+
+    if (mAudio) {
+      if (shouldPlayMorning) {
+        mAudio.volume = 0.75;
+        mAudio.play().catch(() => {});
+      } else {
+        mAudio.pause();
+      }
+    }
+
+    if (nAudio) {
+      if (shouldPlayNight) {
+        nAudio.volume = 0.75;
+        nAudio.play().catch(() => {});
+      } else {
+        nAudio.pause();
+      }
+    }
+
+    return () => {
+      if (mAudio) mAudio.pause();
+      if (nAudio) nAudio.pause();
+    };
+  }, [currentUser, activeTab, muted, isAppMinimized, jakartaTime.phase]);
 
   const updateWorld = useCallback((updater) => {
     setWorld((prev) => {
@@ -4987,6 +5053,21 @@ export default function App() {
                   <span>Shared Care Diary</span>
                 </button>
                 <div className="h-px bg-[#EFE6D8] my-0.5" />
+                <div className="px-3 py-2 rounded-xl bg-[#FAF6F0] border border-[#EFE6D8] space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-extrabold text-[#3B2618]">
+                    <span>🎵 Music Volume</span>
+                    <span className="tabular-nums text-[#D95D78]">{musicVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={musicVolume}
+                    onChange={(e) => handleChangeMusicVolume(e.target.value)}
+                    className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-[#E6D8C5] accent-[#D95D78]"
+                    aria-label="Music Volume"
+                  />
+                </div>
                 <button
                   onClick={() => {
                     setMuted((m) => !m);
@@ -5116,11 +5197,18 @@ export default function App() {
           playsInline
         />
         <audio
-          ref={fireplaceAudioRef}
-          src="/music/fireplace.mp3"
+          ref={morningAudioRef}
+          src="/music/morning.mp3"
           loop
-          playsInline
           preload="auto"
+          playsInline
+        />
+        <audio
+          ref={nightAudioRef}
+          src="/music/night.mp3"
+          loop
+          preload="auto"
+          playsInline
         />
 
         {/* RONALD-ONLY PLUS MAIL ICON ON THE RIGHT OF THE SCREEN */}
