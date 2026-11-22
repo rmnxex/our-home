@@ -1,18 +1,18 @@
 {
-  "name": "Ronald & Ulfah's Pet",
-  "short_name": "R & U Pet",
-  "description": "Ronald & Ulfah's shared modern virtual pet home with live cloud sync.",
-  "start_url": "/",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#FAF6F0",
-  "theme_color": "#FAF6F0",
-  "icons": [
-    {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%23FAF6F0'/><circle cx='256' cy='268' r='165' fill='%23F8B259' stroke='%235C3D2E' stroke-width='18'/><polygon points='135,180 115,65 210,130' fill='%23F8B259' stroke='%235C3D2E' stroke-width='18' stroke-linejoin='round'/><polygon points='377,180 397,65 302,130' fill='%23F8B259' stroke='%235C3D2E' stroke-width='18' stroke-linejoin='round'/><circle cx='200' cy='255' r='22' fill='%234A2E21'/><circle cx='312' cy='255' r='22' fill='%234A2E21'/><ellipse cx='165' cy='292' rx='24' ry='14' fill='%23FDA4AF'/><ellipse cx='347' cy='292' rx='24' ry='14' fill='%23FDA4AF'/><path d='M 232 295 Q 256 320 280 295' fill='none' stroke='%234A2E21' stroke-width='16' stroke-linecap='round'/><text x='256' y='465' text-anchor='middle' font-family='sans-serif' font-weight='800' font-size='44' fill='%23D95D78'>R %26 U</text></svg>",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+"name": "Ronald & Ulfah's Pet",
+"short_name": "R & U Pet",
+"description": "Ronald & Ulfah's shared modern virtual pet home with live cloud sync.",
+"start_url": "/",
+"display": "standalone",
+"orientation": "portrait",
+"background_color": "#FAF6F0",
+"theme_color": "#FAF6F0",
+"icons": [
+{
+"src": "/icon.png",
+"sizes": "512x512",
+"type": "image/png",
+"purpose": "any maskable"
+}
+]
 }
