@@ -3128,7 +3128,7 @@ export default function App() {
   const jakartaTime = useMemo(() => getJakartaTimeInfo(now), [now]);
 
   useEffect(() => {
-    fetch('/music/tracks.json')
+    fetch(`/music/tracks.json?t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -3147,6 +3147,10 @@ export default function App() {
                   }
             )
           );
+          setTrackIndex(0);
+          setTimeout(() => {
+            if (audioRef.current) audioRef.current.load();
+          }, 50);
         }
       })
       .catch(() => {});
@@ -3173,6 +3177,11 @@ export default function App() {
       wasPlayingBeforeMinimizeRef.current = false;
       setIsPlayingMusic(false);
     } else {
+      const currentSrc = playlist[trackIndex]?.file;
+      if (currentSrc && !audio.src.endsWith(currentSrc)) {
+        audio.src = currentSrc;
+        audio.load();
+      }
       audio
         .play()
         .then(() => {
@@ -3181,10 +3190,10 @@ export default function App() {
         })
         .catch(() => {
           setIsPlayingMusic(false);
-          showToast('Add MP3 files into public/music/ to play!');
+          showToast('Tap Play again or check public/music/tracks.json');
         });
     }
-  }, [isPlayingMusic, resetMusicIdleTimer, showToast]);
+  }, [isPlayingMusic, playlist, resetMusicIdleTimer, showToast, trackIndex]);
 
   const handleSkipTrack = useCallback(() => {
     resetMusicIdleTimer();
