@@ -133,7 +133,7 @@ function formatWakeTimeWIB(wakeAtMs) {
 // SHARED MUSIC PLAYLIST & FIREBASE CONFIG
 // ============================================================================
 const DEFAULT_PLAYLIST = [
-  { id: 'track_1', title: 'Cozy Home Theme 1', file: '/music/song1.mp3' },
+  { id: 'track_1', title: 'H.E.R. - Every Kind Of Way', file: '/music/everykindofway.mp3' },
   { id: 'track_2', title: 'Cozy Home Theme 2', file: '/music/song2.mp3' },
   { id: 'track_3', title: 'Cozy Home Theme 3', file: '/music/song3.mp3' },
 ];
@@ -3177,23 +3177,22 @@ export default function App() {
       wasPlayingBeforeMinimizeRef.current = false;
       setIsPlayingMusic(false);
     } else {
-      const currentSrc = playlist[trackIndex]?.file;
-      if (currentSrc && !audio.src.endsWith(currentSrc)) {
-        audio.src = currentSrc;
-        audio.load();
+      audio.muted = false;
+      audio.volume = 0.85;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlayingMusic(true);
+            wasPlayingBeforeMinimizeRef.current = true;
+          })
+          .catch((err) => {
+            setIsPlayingMusic(false);
+            showToast(`Audio blocked: ${err?.name || 'Check MP3 file'}`);
+          });
       }
-      audio
-        .play()
-        .then(() => {
-          setIsPlayingMusic(true);
-          wasPlayingBeforeMinimizeRef.current = true;
-        })
-        .catch(() => {
-          setIsPlayingMusic(false);
-          showToast('Tap Play again or check public/music/tracks.json');
-        });
     }
-  }, [isPlayingMusic, playlist, resetMusicIdleTimer, showToast, trackIndex]);
+  }, [isPlayingMusic, resetMusicIdleTimer, showToast]);
 
   const handleSkipTrack = useCallback(() => {
     resetMusicIdleTimer();
@@ -5106,12 +5105,21 @@ export default function App() {
           ref={audioRef}
           src={playlist[trackIndex]?.file}
           onEnded={handleSkipTrack}
-          preload="none"
+          preload="auto"
+          playsInline
         />
         <audio
           ref={fireplaceAudioRef}
           src="/music/fireplace.mp3"
           loop
+          preload="auto"
+          playsInline
+        />
+        <audio
+          ref={fireplaceAudioRef}
+          src="/music/fireplace.mp3"
+          loop
+          playsInline
           preload="auto"
         />
 
