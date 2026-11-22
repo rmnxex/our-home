@@ -2,102 +2,15 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
 
-// Compatibility bridge for React 19 jsx-runtime inside React 18 preview sandboxes
-const REACT_18_ELEMENT_SYMBOL = Symbol.for('react.element');
-const origSymbolFor = Symbol.for;
-if (typeof Symbol !== 'undefined' && origSymbolFor('react.transitional.element') !== REACT_18_ELEMENT_SYMBOL) {
+// React 18/19 JSX element symbol compatibility bridge for preview sandbox
+if (typeof Symbol !== 'undefined' && Symbol.for) {
+  const origSymbolFor = Symbol.for;
+  const legacyReactElement = origSymbolFor('react.element');
   Symbol.for = function (key) {
-    if (key === 'react.transitional.element') return REACT_18_ELEMENT_SYMBOL;
+    if (key === 'react.transitional.element') return legacyReactElement;
     return origSymbolFor.call(Symbol, key);
   };
 }
-
-// Lightweight inline UI icons (prevents React 18 vs 19 $$typeof symbol mismatch in preview)
-const IconTrophy = ({ className = 'w-3.5 h-3.5' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-  </svg>
-);
-const IconBookOpen = ({ className = 'w-3.5 h-3.5' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-  </svg>
-);
-const IconVolume2 = ({ className = 'w-3.5 h-3.5' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-  </svg>
-);
-const IconVolumeX = ({ className = 'w-3.5 h-3.5' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-  </svg>
-);
-const IconMessageCircle = ({ className = 'w-4 h-4' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-  </svg>
-);
-const IconX = ({ className = 'w-4 h-4' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
-const IconSend = ({ className = 'w-3.5 h-3.5' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-  </svg>
-);
-const IconMusic = ({ className = 'w-4 h-4' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
-  </svg>
-);
-const IconPlay = ({ className = 'w-3 h-3' }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <polygon points="5 3 19 12 5 21 5 3" />
-  </svg>
-);
-const IconPause = ({ className = 'w-3 h-3' }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
-  </svg>
-);
-const IconSkipForward = ({ className = 'w-3 h-3' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <polygon points="5 4 15 12 5 20 5 4" /><line x1="19" y1="5" x2="19" y2="19" />
-  </svg>
-);
-const IconSquare = ({ className = 'w-3 h-3' }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="5" y="5" width="14" height="14" rx="2" />
-  </svg>
-);
-const IconHeart = ({ className = 'w-3 h-3' }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-  </svg>
-);
-const IconEdit3 = ({ className = 'w-3 h-3' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-  </svg>
-);
-const IconCheck = ({ className = 'w-3.5 h-3.5' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-const IconCrown = ({ className = 'w-5 h-5' }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
-  </svg>
-);
-const IconRotateCcw = ({ className = 'w-3 h-3' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
-  </svg>
-);
 
 // ============================================================================
 // REAL-TIME JAKARTA (WIB / Asia/Jakarta) CLOCK & SKY LIGHTING HELPER
@@ -121,7 +34,7 @@ function getJakartaTimeInfo(nowMs = Date.now()) {
   const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 12) % 24;
   const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
 
-  let phase = 'day'; // 'morning' | 'day' | 'sunset' | 'night'
+  let phase = 'day';
   if (hour >= 5 && hour < 10) phase = 'morning';
   else if (hour >= 10 && hour < 16) phase = 'day';
   else if (hour >= 16 && hour < 19) phase = 'sunset';
@@ -133,7 +46,6 @@ function getJakartaTimeInfo(nowMs = Date.now()) {
       skyLower: '#BAE6FD',
       building1: '#CBD5E1',
       building2: '#94A3B8',
-      celestial: 'sun',
       sunColor: '#FBBF24',
       ambientTint: '#FEF3C7',
       ambientOpacity: 0.08,
@@ -145,7 +57,6 @@ function getJakartaTimeInfo(nowMs = Date.now()) {
       skyLower: '#E0F2FE',
       building1: '#B8D4E8',
       building2: '#9EC1DB',
-      celestial: 'sun',
       sunColor: '#FDE047',
       ambientTint: '#FFFFFF',
       ambientOpacity: 0,
@@ -157,7 +68,6 @@ function getJakartaTimeInfo(nowMs = Date.now()) {
       skyLower: '#FDA4AF',
       building1: '#7C5E78',
       building2: '#5B4358',
-      celestial: 'sun',
       sunColor: '#F97316',
       ambientTint: '#FB923C',
       ambientOpacity: 0.14,
@@ -169,7 +79,6 @@ function getJakartaTimeInfo(nowMs = Date.now()) {
       skyLower: '#1E293B',
       building1: '#1E293B',
       building2: '#334155',
-      celestial: 'moon',
       sunColor: '#FEF08A',
       ambientTint: '#0F172A',
       ambientOpacity: 0.24,
@@ -188,9 +97,6 @@ function getJakartaTimeInfo(nowMs = Date.now()) {
   };
 }
 
-// Compute smart Jakarta (WIB) wake-up timestamp:
-// - Bedtime between 20:00 - 04:00 WIB -> auto wakes between 05:00 - 06:00 WIB
-// - Daytime nap outside 20:00 - 04:00 WIB -> auto wakes after 15 minutes
 function computeJakartaWakeAt(nowMs = Date.now()) {
   const { hour } = getJakartaTimeInfo(nowMs);
   const isBedtimeWindow = hour >= 20 || hour < 4;
@@ -198,7 +104,6 @@ function computeJakartaWakeAt(nowMs = Date.now()) {
     return nowMs + 15 * 60 * 1000;
   }
 
-  // Build next 05:00:00 WIB timestamp + random 0..59 minutes (05:00 - 05:59 WIB)
   const jakartaFormatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Jakarta',
     year: 'numeric',
@@ -206,7 +111,7 @@ function computeJakartaWakeAt(nowMs = Date.now()) {
     day: '2-digit',
   });
   const baseDate = hour >= 20 ? new Date(nowMs + 24 * 60 * 60 * 1000) : new Date(nowMs);
-  const dateStr = jakartaFormatter.format(baseDate); // YYYY-MM-DD in Jakarta
+  const dateStr = jakartaFormatter.format(baseDate);
   const randomMin = Math.floor(Math.random() * 60);
   const mm = String(randomMin).padStart(2, '0');
   const targetIso = `${dateStr}T05:${mm}:00+07:00`;
@@ -225,7 +130,7 @@ function formatWakeTimeWIB(wakeAtMs) {
 }
 
 // ============================================================================
-// SHARED MUSIC PLAYLIST (DROP MP3s INTO public/music/ & LIST THEM IN tracks.json)
+// SHARED MUSIC PLAYLIST & FIREBASE CONFIG
 // ============================================================================
 const DEFAULT_PLAYLIST = [
   { id: 'track_1', title: 'Cozy Home Theme 1', file: '/music/song1.mp3' },
@@ -233,9 +138,6 @@ const DEFAULT_PLAYLIST = [
   { id: 'track_3', title: 'Cozy Home Theme 3', file: '/music/song3.mp3' },
 ];
 
-// ============================================================================
-// FIREBASE LIVE COUPLE SYNC CONFIGURATION (CONNECTED TO ronald-ulfah-pet)
-// ============================================================================
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyBuZxYU5XIuy1DgZTrR20Vs1REK8Z1mx6o',
   authDomain: 'ronald-ulfah-pet.firebaseapp.com',
@@ -290,7 +192,6 @@ const COOKING_RECIPES = [
 ];
 
 const OUTFIT_CATALOG = [
-  // HATS
   { id: 'hat_crown', slot: 'hat', name: 'Royal Crown', emoji: '👑', cost: 850, desc: 'Shiny gold crown fit for royalty' },
   { id: 'hat_party', slot: 'hat', name: 'Party Cone', emoji: '🥳', cost: 550, desc: 'Striped celebration hat' },
   { id: 'hat_frog', slot: 'hat', name: 'Froggy Hood', emoji: '🐸', cost: 680, desc: 'Cute green frog ears cap' },
@@ -299,7 +200,6 @@ const OUTFIT_CATALOG = [
   { id: 'hat_wizard', slot: 'hat', name: 'Starry Wizard', emoji: '🧙', cost: 980, desc: 'Magical midnight wizard hat' },
   { id: 'hat_bunny', slot: 'hat', name: 'Bunny Ears', emoji: '🐰', cost: 680, desc: 'Fluffy pink & white bunny ears' },
   { id: 'hat_halo', slot: 'hat', name: 'Angel Halo', emoji: '😇', cost: 900, desc: 'Floating golden angel ring' },
-  // SHIRTS & NECKWEAR
   { id: 'shirt_bow', slot: 'shirt', name: 'Dapper Bowtie', emoji: '🎀', cost: 500, desc: 'Sweet pastel ribbon bow' },
   { id: 'shirt_scarf', slot: 'shirt', name: 'Cozy Scarf', emoji: '🧣', cost: 550, desc: 'Warm winter knit scarf' },
   { id: 'shirt_sailor', slot: 'shirt', name: 'Sailor Collar', emoji: '⚓', cost: 750, desc: 'Classic navy & white sailor top' },
@@ -308,7 +208,6 @@ const OUTFIT_CATALOG = [
   { id: 'shirt_tux', slot: 'shirt', name: 'Mini Tuxedo', emoji: '🤵', cost: 1050, desc: 'Fancy formal couple date tux' },
   { id: 'shirt_flowers', slot: 'shirt', name: 'Sakura Lei', emoji: '🌸', cost: 620, desc: 'Cherry blossom petal garland' },
   { id: 'shirt_cape', slot: 'shirt', name: 'Hero Cape', emoji: '🦸', cost: 900, desc: 'Super-pet crimson cape' },
-  // FULL COSTUMES
   { id: 'costume_bee', slot: 'costume', name: 'Bumblebee Suit', emoji: '🐝', cost: 1250, desc: 'Striped bee hood & tiny wings' },
   { id: 'costume_dino', slot: 'costume', name: 'Dino Onesie', emoji: '🦖', cost: 1350, desc: 'Spiky green dinosaur pajamas' },
   { id: 'costume_astro', slot: 'costume', name: 'Space Helmet', emoji: '🚀', cost: 1500, desc: 'Glass astronaut bubble visor' },
@@ -437,29 +336,25 @@ const PET_ANIMATION_CSS = `
   .fire-spark-1 { animation: fireSpark 1.6s ease-out infinite; }
   .fire-spark-2 { animation: fireSpark 2.0s ease-out infinite 0.55s; }
   .fire-spark-3 { animation: fireSpark 1.4s ease-out infinite 1.1s; }
-  .app-minimized *, .app-minimized *::before, .app-minimized *::after {
+  .app-paused *, .app-paused *::before, .app-paused *::after {
     animation-play-state: paused !important;
     transition: none !important;
   }
 `;
 
 const PET_SPECIES = [
-  // Row 1: Furry Friends
   { id: 'orange_cat', category: 'Furry Friends', speciesName: 'Ginger Tabby Cat', defaultName: 'Mochi', rarity: 'Common', weight: 14, bg: 'from-orange-50 to-amber-100', border: 'border-orange-200' },
   { id: 'shiba_inu', category: 'Furry Friends', speciesName: 'Shiba Inu', defaultName: 'Boba', rarity: 'Common', weight: 14, bg: 'from-amber-50 to-yellow-100', border: 'border-amber-200' },
   { id: 'carrot_bunny', category: 'Furry Friends', speciesName: 'Carrot Bunny', defaultName: 'Pip', rarity: 'Common', weight: 14, bg: 'from-orange-50 to-stone-100', border: 'border-stone-200' },
   { id: 'golden_hamster', category: 'Furry Friends', speciesName: 'Golden Hamster', defaultName: 'Nugget', rarity: 'Common', weight: 13, bg: 'from-yellow-50 to-orange-100', border: 'border-amber-200' },
-  // Row 2: Birds & Reptiles
   { id: 'blue_macaw', category: 'Birds & Reptiles', speciesName: 'Blue Macaw', defaultName: 'Rio', rarity: 'Rare', weight: 9, bg: 'from-sky-50 to-cyan-100', border: 'border-sky-200' },
   { id: 'meadow_turtle', category: 'Birds & Reptiles', speciesName: 'Meadow Turtle', defaultName: 'Matcha', rarity: 'Rare', weight: 9, bg: 'from-emerald-50 to-lime-100', border: 'border-emerald-200' },
   { id: 'fluffy_bluebird', category: 'Birds & Reptiles', speciesName: 'Fluffy Bluebird', defaultName: 'Sky', rarity: 'Rare', weight: 9, bg: 'from-blue-50 to-sky-100', border: 'border-blue-200' },
   { id: 'coral_chameleon', category: 'Birds & Reptiles', speciesName: 'Coral Chameleon', defaultName: 'Tango', rarity: 'Rare', weight: 8, bg: 'from-rose-50 to-emerald-100', border: 'border-rose-200' },
-  // Row 3: Fantasy & Magical
   { id: 'baby_dragon', category: 'Fantasy & Magical', speciesName: 'Baby Dragon', defaultName: 'Ember', rarity: 'Epic', weight: 5, bg: 'from-orange-100 to-pink-100', border: 'border-pink-300' },
   { id: 'cosmic_star', category: 'Fantasy & Magical', speciesName: 'Cosmic Star', defaultName: 'Nova', rarity: 'Legendary', weight: 3, bg: 'from-indigo-100 to-purple-100', border: 'border-indigo-300' },
   { id: 'mini_griffin', category: 'Fantasy & Magical', speciesName: 'Mini Griffin', defaultName: 'Apollo', rarity: 'Epic', weight: 5, bg: 'from-amber-100 to-yellow-100', border: 'border-amber-300' },
   { id: 'rainbow_unicorn', category: 'Fantasy & Magical', speciesName: 'Rainbow Unicorn', defaultName: 'Starlight', rarity: 'Legendary', weight: 3, bg: 'from-fuchsia-100 to-sky-100', border: 'border-purple-300' },
-  // Row 4: Aquatic & Tiny
   { id: 'fancy_goldfish', category: 'Aquatic & Tiny', speciesName: 'Fancy Goldfish', defaultName: 'Bubbles', rarity: 'Common', weight: 10, bg: 'from-cyan-50 to-sky-100', border: 'border-cyan-200' },
   { id: 'woodland_owl', category: 'Aquatic & Tiny', speciesName: 'Woodland Owl', defaultName: 'Hootie', rarity: 'Rare', weight: 8, bg: 'from-amber-50 to-stone-200', border: 'border-amber-300' },
   { id: 'lilypad_frog', category: 'Aquatic & Tiny', speciesName: 'Lilypad Frog', defaultName: 'Keropi', rarity: 'Common', weight: 10, bg: 'from-green-50 to-emerald-100', border: 'border-green-200' },
@@ -467,7 +362,6 @@ const PET_SPECIES = [
 ];
 
 const clamp = (val, min = 0, max = 100) => Math.min(max, Math.max(min, val));
-
 const getSpecies = (id) => PET_SPECIES.find((s) => s.id === id) || PET_SPECIES[0];
 
 const rollGachaSpecies = () => {
@@ -504,6 +398,19 @@ const getGrowthStage = (ageMs) => {
   return { stage: 'Elder', scale: 1.12, nextLabel: 'Max Stage' };
 };
 
+const computeLiveStatsForPet = (pet, nowTs) => {
+  if (!pet) return { hunger: 80, happiness: 80, energy: 80, hygiene: 80, potty: 0 };
+  const elapsedMins = Math.max(0, (nowTs - (pet.lastUpdated || nowTs)) / 60000);
+  const hunger = clamp(Math.round((pet.hunger ?? 80) - elapsedMins * 0.45));
+  const happiness = clamp(Math.round((pet.happiness ?? 80) - elapsedMins * 0.35));
+  const hygiene = clamp(Math.round((pet.hygiene ?? 80) - elapsedMins * 0.3));
+  const energy = pet.isSleeping
+    ? clamp(Math.round((pet.energy ?? 80) + elapsedMins * 1.6))
+    : clamp(Math.round((pet.energy ?? 80) - elapsedMins * 0.4));
+  const potty = clamp(Math.round((pet.potty ?? 0) + elapsedMins * 0.4));
+  return { hunger, happiness, energy, hygiene, potty };
+};
+
 const createInitialWorld = () => {
   const adoptedAt = Date.now() - 45 * 60000;
   return {
@@ -518,6 +425,14 @@ const createInitialWorld = () => {
     activePetId: 'starter_mochi',
     cookedInventory: {},
     ownedOutfits: ['shirt_bow'],
+    chatMessages: [
+      {
+        id: 'welcome_chat_1',
+        sender: 'Ronald',
+        text: 'Welcome to our cozy home! 💕',
+        timestamp: adoptedAt,
+      },
+    ],
     pets: {
       starter_mochi: {
         id: 'starter_mochi',
@@ -545,7 +460,6 @@ const createInitialWorld = () => {
         timestamp: adoptedAt,
       },
     ],
-    chatMessages: [],
     scores: [],
   };
 };
@@ -553,7 +467,7 @@ const createInitialWorld = () => {
 // Web Audio Cozy SFX Engine
 let sharedAudioCtx = null;
 function playSfx(type, muted = false) {
-  if (muted || typeof window === 'undefined' || (typeof document !== 'undefined' && document.hidden)) return;
+  if (muted || typeof window === 'undefined' || document.hidden) return;
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
@@ -639,18 +553,6 @@ function playSfx(type, muted = false) {
         break;
       case 'sizzle':
       case 'panSizzle': {
-        if (typeof Audio !== 'undefined') {
-          try {
-            const fpSizzle = new Audio('/music/fireplace.mp3');
-            fpSizzle.volume = 0.65;
-            fpSizzle.play().catch(() => {});
-            setTimeout(() => {
-              fpSizzle.pause();
-            }, 600);
-          } catch {
-            // Ignore audio playback errors
-          }
-        }
         noiseBurst(0.55, 0.065, 3400);
         noiseBurst(0.45, 0.04, 6200);
         const popCount = 3 + Math.floor(Math.random() * 3);
@@ -663,19 +565,7 @@ function playSfx(type, muted = false) {
       case 'flip':
         tone(260, 0.14, 'sine', 0.07, 0, 680);
         setTimeout(() => {
-          if (!muted) {
-            if (typeof Audio !== 'undefined') {
-              try {
-                const fpFlip = new Audio('/music/fireplace.mp3');
-                fpFlip.volume = 0.75;
-                fpFlip.play().catch(() => {});
-                setTimeout(() => {
-                  fpFlip.pause();
-                }, 520);
-              } catch {
-                // Ignore audio playback errors
-              }
-            }
+          if (!muted && !document.hidden) {
             noiseBurst(0.45, 0.08, 4200);
             tone(1900, 0.03, 'sine', 0.035, 0.05, 1100);
           }
@@ -689,7 +579,6 @@ function playSfx(type, muted = false) {
         tone(1046, 0.25, 'sine', 0.09, 0.27);
         break;
       case 'fireCrackle': {
-        // Gentle warm hearth rumble + cozy wood crackle pops
         noiseBurst(0.65, 0.018, 420);
         const crackles = 1 + Math.floor(Math.random() * 3);
         for (let i = 0; i < crackles; i++) {
@@ -809,50 +698,50 @@ function RoomDockIcon({ roomId, active }) {
   return (
     <svg
       viewBox="0 0 64 56"
-      className={`w-12 h-11 overflow-visible transition-transform duration-200 ${active ? 'scale-115 -translate-y-1.5' : 'scale-95 opacity-90'}`}
+      className={`w-10 h-9 overflow-visible transition-transform duration-200 ${active ? 'scale-105' : 'scale-95 opacity-85'}`}
       style={{
-        filter: 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff) drop-shadow(0 3px 4px rgba(120,70,30,0.2))',
+        filter: 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff) drop-shadow(0 2px 3px rgba(120,70,30,0.18))',
       }}
     >
       {roomId === 'living' && (
         <g stroke="#292524" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="8" y="24" width="48" height="20" rx="6" fill="#475569" />
-          <rect x="12" y="28" width="18" height="12" rx="3" fill="#64748B" />
-          <rect x="34" y="28" width="18" height="12" rx="3" fill="#64748B" />
-          <line x1="14" y1="44" x2="14" y2="49" />
-          <line x1="50" y1="44" x2="50" y2="49" />
+          <rect x="8" y="20" width="48" height="20" rx="6" fill="#475569" />
+          <rect x="12" y="24" width="18" height="12" rx="3" fill="#64748B" />
+          <rect x="34" y="24" width="18" height="12" rx="3" fill="#64748B" />
+          <line x1="14" y1="40" x2="14" y2="45" />
+          <line x1="50" y1="40" x2="50" y2="45" />
         </g>
       )}
       {roomId === 'dining' && (
         <g stroke="#292524" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <ellipse cx="32" cy="24" rx="22" ry="8" fill="#F8FAFC" />
-          <rect x="29" y="32" width="6" height="14" rx="2" fill="#334155" />
-          <line x1="20" y1="46" x2="44" y2="46" strokeWidth="3" />
-          <ellipse cx="32" cy="24" rx="8" ry="3.5" fill="#CBD5E1" />
+          <ellipse cx="32" cy="20" rx="22" ry="8" fill="#F8FAFC" />
+          <rect x="29" y="28" width="6" height="14" rx="2" fill="#334155" />
+          <line x1="20" y1="42" x2="44" y2="42" strokeWidth="3" />
+          <ellipse cx="32" cy="20" rx="8" ry="3.5" fill="#CBD5E1" />
         </g>
       )}
       {roomId === 'bathroom' && (
         <g stroke="#292524" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="10" y="24" width="44" height="22" rx="8" fill="#FFFFFF" />
-          <rect x="14" y="26" width="36" height="6" rx="3" fill="#BAE6FD" />
-          <line x1="48" y1="16" x2="48" y2="24" strokeWidth="2.5" />
+          <rect x="10" y="20" width="44" height="22" rx="8" fill="#FFFFFF" />
+          <rect x="14" y="22" width="36" height="6" rx="3" fill="#BAE6FD" />
+          <line x1="48" y1="12" x2="48" y2="20" strokeWidth="2.5" />
         </g>
       )}
       {roomId === 'bedroom' && (
         <g stroke="#292524" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="8" y="32" width="48" height="12" rx="4" fill="#D6B48C" />
-          <rect x="12" y="22" width="40" height="12" rx="4" fill="#F8FAFC" />
-          <rect x="16" y="24" width="13" height="6" rx="2.5" fill="#E2E8F0" />
-          <rect x="35" y="24" width="13" height="6" rx="2.5" fill="#E2E8F0" />
+          <rect x="8" y="28" width="48" height="12" rx="4" fill="#D6B48C" />
+          <rect x="12" y="18" width="40" height="12" rx="4" fill="#F8FAFC" />
+          <rect x="16" y="20" width="13" height="6" rx="2.5" fill="#E2E8F0" />
+          <rect x="35" y="20" width="13" height="6" rx="2.5" fill="#E2E8F0" />
         </g>
       )}
       {roomId === 'park' && (
         <g stroke="#292524" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="10" y="38" width="44" height="8" rx="3" fill="#B47B48" />
-          <rect x="29" y="24" width="6" height="14" fill="#57534E" />
-          <circle cx="32" cy="18" r="11" fill="#65A30D" />
-          <circle cx="22" cy="22" r="7.5" fill="#84CC16" />
-          <circle cx="42" cy="22" r="7.5" fill="#84CC16" />
+          <rect x="10" y="34" width="44" height="8" rx="3" fill="#B47B48" />
+          <rect x="29" y="20" width="6" height="14" fill="#57534E" />
+          <circle cx="32" cy="14" r="11" fill="#65A30D" />
+          <circle cx="22" cy="18" r="7.5" fill="#84CC16" />
+          <circle cx="42" cy="18" r="7.5" fill="#84CC16" />
         </g>
       )}
     </svg>
@@ -860,7 +749,7 @@ function RoomDockIcon({ roomId, active }) {
 }
 
 // ============================================================================
-// 5 MODERN ARCHITECTURAL INTERACTIVE ROOMS (WITH LIVE JAKARTA TIME WINDOWS)
+// 5 MODERN ARCHITECTURAL INTERACTIVE ROOMS
 // ============================================================================
 function IllustratedRoomBackdrop({
   roomId,
@@ -890,7 +779,6 @@ function IllustratedRoomBackdrop({
   const jHour = jakartaTime?.hour ?? 12;
   const jMinute = jakartaTime?.minute ?? 0;
 
-  // Real Jakarta clock hands for the Bedroom wall clock
   const hourAngle = ((jHour % 12) + jMinute / 60) * 30;
   const minuteAngle = jMinute * 6;
 
@@ -956,7 +844,6 @@ function IllustratedRoomBackdrop({
             <rect y="345" width="400" height="455" fill="url(#modernOakFloor)" />
             <rect y="341" width="400" height="5" fill="#292524" />
 
-            {/* Jakarta Sky & Skyline Window */}
             <g>
               <rect x="266" y="108" width="122" height="234" fill="url(#jakartaWindowSky)" stroke="#1C1917" strokeWidth="6" />
               {phase === 'night' ? (
@@ -986,13 +873,11 @@ function IllustratedRoomBackdrop({
                 </g>
               )}
 
-              {/* Jakarta Skyline Silhouette */}
               <rect x="276" y="236" width="22" height="102" fill={sky.building1} />
               <rect x="304" y="214" width="26" height="124" fill={sky.building2} />
               <rect x="336" y="248" width="20" height="90" fill={sky.building1} />
               <rect x="360" y="226" width="22" height="112" fill={sky.building2} />
 
-              {/* Lit Apartment Windows at Night */}
               {phase === 'night' && (
                 <g fill="#FDE047" opacity="0.85">
                   <rect x="282" y="250" width="4" height="5" />
@@ -1010,7 +895,6 @@ function IllustratedRoomBackdrop({
               <line x1="266" y1="186" x2="388" y2="186" stroke="#1C1917" strokeWidth="4" />
               <line x1="266" y1="264" x2="388" y2="264" stroke="#1C1917" strokeWidth="4" />
 
-              {/* Sunlight Beam Slant on Floor during Morning & Day */}
               {(phase === 'morning' || phase === 'day') && (
                 <polygon
                   points="266,345 388,345 330,455 210,455"
@@ -1071,7 +955,6 @@ function IllustratedRoomBackdrop({
               <path d="M 112 224 Q 106 210 100 206 M 112 224 Q 118 208 124 204" stroke="#4D7C0F" strokeWidth="2.2" fill="none" />
             </g>
 
-            {/* Warm Radial Firelight Illumination in Living Room */}
             <g pointerEvents="none">
               <ellipse
                 cx="104"
@@ -1297,7 +1180,7 @@ function IllustratedRoomBackdrop({
           </g>
         )}
 
-        {/* 4. MODERN PLATFORM BEDROOM (LIVE JAKARTA SKY WINDOW & WALL CLOCK) */}
+        {/* 4. MODERN PLATFORM BEDROOM */}
         {roomId === 'bedroom' && (
           <g>
             <rect width="400" height="330" fill="#EDEAE4" />
@@ -1305,7 +1188,6 @@ function IllustratedRoomBackdrop({
             <rect y="330" width="400" height="470" fill="url(#modernOakFloor)" />
             <rect y="326" width="400" height="5" fill="#292524" />
 
-            {/* Bedroom Window synced to Jakarta time */}
             <g>
               <rect x="36" y="138" width="92" height="68" rx="4" fill="url(#jakartaWindowSky)" stroke="#1C1917" strokeWidth="4.5" />
               {phase === 'night' ? (
@@ -1322,7 +1204,6 @@ function IllustratedRoomBackdrop({
               <line x1="82" y1="138" x2="82" y2="206" stroke="#1C1917" strokeWidth="3.5" />
             </g>
 
-            {/* Live Jakarta Wall Clock */}
             <g>
               <circle cx="316" cy="184" r="28" fill="#FFFFFF" stroke="#1C1917" strokeWidth="3.5" />
               <line
@@ -1409,7 +1290,7 @@ function IllustratedRoomBackdrop({
           </g>
         )}
 
-        {/* 5. MODERN COURTYARD & ROOFTOP PARK (LIVE JAKARTA SKY) */}
+        {/* 5. MODERN COURTYARD & ROOFTOP PARK */}
         {roomId === 'park' && (
           <g>
             <rect width="400" height="335" fill="url(#jakartaWindowSky)" />
@@ -1481,12 +1362,10 @@ function IllustratedRoomBackdrop({
           </g>
         )}
 
-        {/* Ambient Jakarta Time-of-Day Tint (Sunset warmth / Night dim) */}
         {sky.ambientOpacity > 0 && (
           <rect width="400" height="800" fill={sky.ambientTint} opacity={sky.ambientOpacity} pointerEvents="none" />
         )}
 
-        {/* Realistic Multi-Stop Radial Hearth Glow at Night */}
         {roomId === 'living' && phase === 'night' && (
           <rect
             width="400"
@@ -1498,7 +1377,6 @@ function IllustratedRoomBackdrop({
           />
         )}
 
-        {/* Bedroom Lamp Off Dim Overlay */}
         {isSleeping && <rect width="400" height="800" fill="#0F172A" opacity="0.46" pointerEvents="none" />}
       </svg>
     </div>
@@ -1506,7 +1384,7 @@ function IllustratedRoomBackdrop({
 }
 
 // ============================================================================
-// SPECIES-SPECIFIC OUTFIT ANCHOR CALIBRATION (PERFECT FIT FOR ALL 16 PETS)
+// SPECIES-SPECIFIC OUTFIT ANCHOR CALIBRATION & OVERLAY LAYER
 // ============================================================================
 const PET_OUTFIT_ANCHORS = {
   orange_cat:      { headX: 58, headY: 26, headScale: 1.0,  bodyX: 58, bodyY: 82, bodyScaleX: 1.0,  bodyScaleY: 1.0,  visorY: 48, visorR: 32 },
@@ -1527,9 +1405,6 @@ const PET_OUTFIT_ANCHORS = {
   space_hamster:   { headX: 60, headY: 24, headScale: 0.96, bodyX: 60, bodyY: 84, bodyScaleX: 1.0,  bodyScaleY: 1.0,  visorY: 48, visorR: 32 },
 };
 
-// ============================================================================
-// PET OUTFIT SVG OVERLAY LAYER (HATS, SHIRTS & FULL COSTUMES)
-// ============================================================================
 function PetOutfitLayer({ outfit, speciesId = 'orange_cat' }) {
   if (!outfit) return null;
   const { hat, shirt, costume } = outfit;
@@ -1760,7 +1635,7 @@ function PetOutfitLayer({ outfit, speciesId = 'orange_cat' }) {
 }
 
 // ============================================================================
-// ALL 16 ANIMATED STICKER-STYLE PETS (CUSTOM VECTOR ILLUSTRATIONS)
+// ALL 16 ANIMATED STICKER-STYLE PETS
 // ============================================================================
 function AnimatedStickerPet({
   speciesId = 'orange_cat',
@@ -2556,8 +2431,8 @@ function BathMinigameModal({ pet, onComplete, onClose, muted }) {
               {phase === 'done' && `${pet.name} smells fresh and sparkling clean!`}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 text-gray-500">
-            <IconX className="w-4 h-4" />
+          <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 text-gray-500 font-bold text-xs">
+            ✕
           </button>
         </div>
 
@@ -2634,7 +2509,7 @@ function BathMinigameModal({ pet, onComplete, onClose, muted }) {
 }
 
 // ============================================================================
-// INTERACTIVE MINIGAME 5: MULTI-STAGE STOVE COOKING GAME (PREP -> FRY -> PLATE)
+// INTERACTIVE MINIGAME 5: MULTI-STAGE STOVE COOKING GAME (WITH FIREPLACE SIZZLE)
 // ============================================================================
 const RECIPE_PREP_STEPS = {
   fried_egg: {
@@ -2659,7 +2534,7 @@ const RECIPE_PREP_STEPS = {
   },
 };
 
-function CookingMinigameModal({ coins, onCompleteCook, onClose, muted }) {
+function CookingMinigameModal({ coins, onCompleteCook, onClose, muted, fireplaceAudioRef }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [phase, setPhase] = useState('select');
   const [prepIndex, setPrepIndex] = useState(0);
@@ -2678,9 +2553,31 @@ function CookingMinigameModal({ coins, onCompleteCook, onClose, muted }) {
     { id: 2, x: 50, y: 66, placed: false },
   ]);
 
+  const triggerFireplaceSizzle = useCallback(() => {
+    if (muted || document.hidden) return;
+    const fpAudio = fireplaceAudioRef?.current;
+    if (fpAudio) {
+      fpAudio.volume = 0.72;
+      if (fpAudio.paused) {
+        fpAudio.play().catch(() => {
+          playSfx('panSizzle', muted);
+        });
+      }
+    } else {
+      playSfx('panSizzle', muted);
+    }
+  }, [fireplaceAudioRef, muted]);
+
   useEffect(() => {
-    if (phase !== 'fry') return;
-    playSfx('panSizzle', muted);
+    const fpAudio = fireplaceAudioRef?.current;
+    if (phase !== 'fry') {
+      if (fpAudio && !fpAudio.paused) {
+        fpAudio.pause();
+      }
+      return;
+    }
+
+    triggerFireplaceSizzle();
     const speed = 3.2 + flipCount * 0.9;
     const moveId = setInterval(() => {
       setCursor((prev) => {
@@ -2697,14 +2594,19 @@ function CookingMinigameModal({ coins, onCompleteCook, onClose, muted }) {
     }, 26);
 
     const sizzleId = setInterval(() => {
-      playSfx('panSizzle', muted);
-    }, 480);
+      if (fpAudio && fpAudio.paused && !muted && !document.hidden) {
+        playSfx('panSizzle', muted);
+      }
+    }, 520);
 
     return () => {
       clearInterval(moveId);
       clearInterval(sizzleId);
+      if (fpAudio && !fpAudio.paused) {
+        fpAudio.pause();
+      }
     };
-  }, [phase, flipCount, muted]);
+  }, [phase, flipCount, muted, fireplaceAudioRef, triggerFireplaceSizzle]);
 
   const prepConfig = selectedRecipe ? RECIPE_PREP_STEPS[selectedRecipe.id] : null;
 
@@ -2733,7 +2635,7 @@ function CookingMinigameModal({ coins, onCompleteCook, onClose, muted }) {
 
     if (prepIndex + 1 >= prepConfig.ingredients.length) {
       setTimeout(() => {
-        playSfx('panSizzle', muted);
+        triggerFireplaceSizzle();
         setPhase('fry');
       }, 280);
     } else {
@@ -2745,6 +2647,7 @@ function CookingMinigameModal({ coins, onCompleteCook, onClose, muted }) {
     if (isFlipping) return;
     setIsFlipping(true);
     playSfx('flip', muted);
+    triggerFireplaceSizzle();
 
     const isPerfect = cursor >= 38 && cursor <= 62;
     const isGood = cursor >= 26 && cursor <= 74;
@@ -2755,7 +2658,7 @@ function CookingMinigameModal({ coins, onCompleteCook, onClose, muted }) {
       setTimeout(() => playSfx('perfect', muted), 130);
     } else if (isGood) {
       setFeedback('✨ GOLDEN SIZZLE!');
-      setTimeout(() => playSfx('panSizzle', muted), 130);
+      setTimeout(() => triggerFireplaceSizzle(), 130);
     } else {
       setFeedback('😅 TOO EARLY/LATE!');
       setTimeout(() => playSfx('miss', muted), 120);
@@ -2807,8 +2710,8 @@ function CookingMinigameModal({ coins, onCompleteCook, onClose, muted }) {
               {phase === 'done' && 'Freshly cooked and ready in your Dining Table Food UI!'}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 text-gray-500">
-            <IconX className="w-4 h-4" />
+          <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 text-gray-500 font-bold text-xs">
+            ✕
           </button>
         </div>
 
@@ -3050,44 +2953,47 @@ export default function App() {
     return createInitialWorld();
   });
 
+  const [isAppMinimized, setIsAppMinimized] = useState(() =>
+    typeof document !== 'undefined' ? document.hidden : false
+  );
+
   const [cloudStatus, setCloudStatus] = useState(db ? 'connecting' : 'local');
   const [now, setNow] = useState(Date.now());
   const [activeTab, setActiveTab] = useState('home');
   const [currentRoom, setCurrentRoom] = useState('living');
   const [muted, setMuted] = useState(false);
-  const [isAppMinimized, setIsAppMinimized] = useState(
-    () => typeof document !== 'undefined' && document.hidden
-  );
   const [toast, setToast] = useState(null);
+  const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
 
-  // Room & Pet Movement State (All pets active & moving independently!)
+  // Pet Movement State
   const [petPos, setPetPos] = useState({ x: 50, y: 66 });
   const [petFacing, setPetFacing] = useState(1);
   const [isWalking, setIsWalking] = useState(false);
-  const [companionPositions, setCompanionPositions] = useState({});
-  const [isEating, setIsEating] = useState(false);
-  const [isHappy, setIsHappy] = useState(false);
-  const [isSittingAtTable, setIsSittingAtTable] = useState(false);
+  const [buddyPositions, setBuddyPositions] = useState({});
+  const [buddyWalking, setBuddyWalking] = useState({});
+
+  // Individual Care Action States
+  const [eatingPetId, setEatingPetId] = useState(null);
+  const [happyPetId, setHappyPetId] = useState(null);
+  const [sittingAtTablePetId, setSittingAtTablePetId] = useState(null);
   const [isPetOnBed, setIsPetOnBed] = useState(false);
   const [isPooping, setIsPooping] = useState(false);
   const [droppedItem, setDroppedItem] = useState(null);
   const [floatingHearts, setFloatingHearts] = useState([]);
 
-  // Simple Floating Couple Chat State
-  const [showChat, setShowChat] = useState(false);
-  const [chatInput, setChatInput] = useState('');
-  const [lastSeenChatCount, setLastSeenChatCount] = useState(0);
-  const chatEndRef = useRef(null);
+  // Target Pet Selection for Feed & Bath
+  const [feedTargetPetId, setFeedTargetPetId] = useState(null);
+  const [showFeedTargetPicker, setShowFeedTargetPicker] = useState(false);
+  const [bathTargetPetId, setBathTargetPetId] = useState(null);
+  const [showBathTargetPicker, setShowBathTargetPicker] = useState(false);
 
   // UI Overlays & Modals
   const [showFoodDrawer, setShowFoodDrawer] = useState(false);
-  const [feedingPetId, setFeedingPetId] = useState(null);
   const [showBathGame, setShowBathGame] = useState(false);
-  const [bathingPetId, setBathingPetId] = useState(null);
-  const [showBathSelectModal, setShowBathSelectModal] = useState(false);
   const [showCookModal, setShowCookModal] = useState(false);
   const [wardrobeCategory, setWardrobeCategory] = useState('hat');
-  const [editingPetId, setEditingPetId] = useState(null);
+  const [wardrobePetId, setWardrobePetId] = useState(null);
+  const [renamingPetId, setRenamingPetId] = useState(null);
   const [nameInput, setNameInput] = useState('');
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteInput, setNoteInput] = useState('');
@@ -3095,10 +3001,21 @@ export default function App() {
   const [gachaResult, setGachaResult] = useState(null);
   const [activeMinigame, setActiveMinigame] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
-  const [showRoomHints, setShowRoomHints] = useState(true);
+  const [showRoomHints] = useState(true);
   const [activeNeedAlert, setActiveNeedAlert] = useState(null);
 
-  // Collapsible Music Player State (minimizes to logo after 3s idle)
+  // Simple Floating Couple Chat State
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [lastSeenChatCount, setLastSeenChatCount] = useState(() => (world.chatMessages || []).length);
+  const chatBottomRef = useRef(null);
+
+  // Secret Mail (Ronald -> Ulfah One-Time Package in Living Room)
+  const [showSecretMailComposer, setShowSecretMailComposer] = useState(false);
+  const [secretMailInput, setSecretMailInput] = useState('');
+  const [openedSecretMail, setOpenedSecretMail] = useState(null);
+
+  // Collapsible Music Player State
   const [playlist, setPlaylist] = useState(DEFAULT_PLAYLIST);
   const [trackIndex, setTrackIndex] = useState(0);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
@@ -3108,7 +3025,7 @@ export default function App() {
   const musicIdleTimerRef = useRef(null);
   const wasPlayingBeforeMinimizeRef = useRef(false);
 
-  // Auto-minimizing Pet Status Card (minimizes after 5s idle, expands when clicking pet)
+  // Auto-minimizing Pet Status Card
   const [statusExpanded, setStatusExpanded] = useState(true);
   const statusIdleTimerRef = useRef(null);
 
@@ -3124,19 +3041,9 @@ export default function App() {
     }, 2800);
   }, []);
 
-  const resetStatusIdleTimer = useCallback(() => {
-    if (statusIdleTimerRef.current) clearTimeout(statusIdleTimerRef.current);
-    statusIdleTimerRef.current = setTimeout(() => {
-      setStatusExpanded(false);
-    }, 5000);
-  }, []);
-
-  const expandStatusCard = useCallback(() => {
-    setStatusExpanded(true);
-    resetStatusIdleTimer();
-  }, [resetStatusIdleTimer]);
-
-  // Auto-mute all audio & hibernate timers/animations when app is minimized
+  // ============================================================================
+  // MINIMIZED / BACKGROUND BATTERY SAVER & AUTO-MUTE HANDLER
+  // ============================================================================
   useEffect(() => {
     const handleVisibilityChange = () => {
       const hidden = document.hidden;
@@ -3173,9 +3080,7 @@ export default function App() {
       setIsAppMinimized(true);
       if (audioRef.current) audioRef.current.pause();
       if (fireplaceAudioRef.current) fireplaceAudioRef.current.pause();
-      if (sharedAudioCtx && sharedAudioCtx.state === 'running') {
-        sharedAudioCtx.suspend().catch(() => {});
-      }
+      setIsPlayingMusic(false);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -3186,18 +3091,26 @@ export default function App() {
     };
   }, [muted]);
 
-  const effectiveMuted = muted || isAppMinimized;
+  const resetStatusIdleTimer = useCallback(() => {
+    if (statusIdleTimerRef.current) clearTimeout(statusIdleTimerRef.current);
+    statusIdleTimerRef.current = setTimeout(() => {
+      setStatusExpanded(false);
+    }, 5000);
+  }, []);
 
-  // Start 5s auto-minimize timer once signed in on Home tab
+  const expandStatusCard = useCallback(() => {
+    setStatusExpanded(true);
+    resetStatusIdleTimer();
+  }, [resetStatusIdleTimer]);
+
   useEffect(() => {
-    if (!currentUser || activeTab !== 'home') return;
+    if (!currentUser || activeTab !== 'home' || isAppMinimized) return;
     resetStatusIdleTimer();
     return () => {
       if (statusIdleTimerRef.current) clearTimeout(statusIdleTimerRef.current);
     };
-  }, [currentUser, activeTab, resetStatusIdleTimer]);
+  }, [currentUser, activeTab, isAppMinimized, resetStatusIdleTimer]);
 
-  // Helper to send cute & fun notifications to both Ronald & Ulfah
   const triggerCutePartnerNotification = useCallback(
     (title, body) => {
       showToast(`${title} ${body}`);
@@ -3212,10 +3125,8 @@ export default function App() {
     [showToast]
   );
 
-  // Live Jakarta Time & Sky Lighting State
   const jakartaTime = useMemo(() => getJakartaTimeInfo(now), [now]);
 
-  // Load custom song list from public/music/tracks.json if present on GitHub/Vercel
   useEffect(() => {
     fetch('/music/tracks.json')
       .then((res) => (res.ok ? res.json() : null))
@@ -3259,11 +3170,15 @@ export default function App() {
     if (!audio) return;
     if (isPlayingMusic) {
       audio.pause();
+      wasPlayingBeforeMinimizeRef.current = false;
       setIsPlayingMusic(false);
     } else {
       audio
         .play()
-        .then(() => setIsPlayingMusic(true))
+        .then(() => {
+          setIsPlayingMusic(true);
+          wasPlayingBeforeMinimizeRef.current = true;
+        })
         .catch(() => {
           setIsPlayingMusic(false);
           showToast('Add MP3 files into public/music/ to play!');
@@ -3278,7 +3193,7 @@ export default function App() {
     setTrackIndex(nextIdx);
     setTimeout(() => {
       const audio = audioRef.current;
-      if (audio) {
+      if (audio && !document.hidden) {
         audio
           .play()
           .then(() => setIsPlayingMusic(true))
@@ -3294,6 +3209,7 @@ export default function App() {
       audio.pause();
       audio.currentTime = 0;
     }
+    wasPlayingBeforeMinimizeRef.current = false;
     setIsPlayingMusic(false);
   }, [resetMusicIdleTimer]);
 
@@ -3303,7 +3219,7 @@ export default function App() {
     };
   }, []);
 
-  // Subscribe to real-time Firestore updates across Ronald & Ulfah's devices
+  // Firestore real-time sync
   useEffect(() => {
     if (!db) return;
     const roomDocRef = doc(db, 'shared_pet_rooms', SHARED_COUPLE_ROOM_ID);
@@ -3323,7 +3239,6 @@ export default function App() {
               } catch {
                 // Ignore storage write errors
               }
-              // Fire cute notification if partner just fed, bathed, or tucked pets into bed
               const careEvt = remoteData.lastCareEvent;
               if (careEvt && careEvt.id && careEvt.id !== lastCareEventIdRef.current) {
                 lastCareEventIdRef.current = careEvt.id;
@@ -3335,7 +3250,6 @@ export default function App() {
             }
           }
         } else {
-          // Seed initial shared room if cloud doc doesn't exist yet
           const seeded = { ...createInitialWorld(), _rev: Date.now() };
           lastRemoteRevRef.current = seeded._rev;
           setDoc(roomDocRef, seeded).catch(() => {});
@@ -3348,11 +3262,12 @@ export default function App() {
     return () => unsubscribe();
   }, [muted, triggerCutePartnerNotification]);
 
-  // Cozy fireplace audio (/music/fireplace.mp3 with synth crackle fallback) in Living Room
+  // Cozy fireplace audio in Living Room (pauses when minimized or cooking modal owns it)
   useEffect(() => {
     const fpAudio = fireplaceAudioRef.current;
+    if (showCookModal) return;
     const shouldPlay = Boolean(
-      currentUser && activeTab === 'home' && currentRoom === 'living' && !effectiveMuted
+      currentUser && activeTab === 'home' && currentRoom === 'living' && !muted && !isAppMinimized
     );
 
     if (!shouldPlay) {
@@ -3384,7 +3299,7 @@ export default function App() {
       if (fpAudio) fpAudio.pause();
       if (fallbackInterval) clearInterval(fallbackInterval);
     };
-  }, [currentUser, activeTab, currentRoom, effectiveMuted]);
+  }, [currentUser, activeTab, currentRoom, muted, isAppMinimized, showCookModal]);
 
   const updateWorld = useCallback((updater) => {
     setWorld((prev) => {
@@ -3419,37 +3334,18 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // Real-time aging, Jakarta clock & stat tick (pauses while minimized to save battery)
+  // Battery-conscious clock tick: pauses completely when minimized
   useEffect(() => {
     if (isAppMinimized) return;
-    const id = setInterval(() => setNow(Date.now()), 2000);
+    const id = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(id);
   }, [isAppMinimized]);
 
+  const allPetsList = useMemo(() => Object.values(world.pets || {}), [world.pets]);
+
   const activePet = useMemo(() => {
-    return world.pets[world.activePetId] || Object.values(world.pets)[0];
-  }, [world]);
-
-  const allPetsList = useMemo(() => {
-    return Object.values(world.pets || {});
-  }, [world.pets]);
-
-  const getPetLiveStats = useCallback(
-    (pet) => {
-      if (!pet) return { hunger: 80, happiness: 80, energy: 80, hygiene: 80, potty: 0 };
-      const elapsedMins = Math.max(0, (now - (pet.lastUpdated || now)) / 60000);
-      return {
-        hunger: clamp(Math.round(pet.hunger - elapsedMins * 0.45)),
-        happiness: clamp(Math.round(pet.happiness - elapsedMins * 0.35)),
-        hygiene: clamp(Math.round(pet.hygiene - elapsedMins * 0.3)),
-        energy: pet.isSleeping
-          ? clamp(Math.round(pet.energy + elapsedMins * 1.6))
-          : clamp(Math.round(pet.energy - elapsedMins * 0.4)),
-        potty: clamp(Math.round((pet.potty ?? 0) + elapsedMins * 0.4)),
-      };
-    },
-    [now]
-  );
+    return world.pets[world.activePetId] || allPetsList[0];
+  }, [world.pets, world.activePetId, allPetsList]);
 
   const companionPets = useMemo(() => {
     return allPetsList.filter((p) => p.id !== activePet.id);
@@ -3458,21 +3354,20 @@ export default function App() {
   const ageMs = Math.max(60000, now - (activePet.adoptedAt || now));
   const growthInfo = useMemo(() => getGrowthStage(ageMs), [ageMs]);
   const isRonald = currentUser === 'Ronald';
-  const canClaimDaily = world.lastDailyClaim !== getTodayKey();
 
-  const liveStats = useMemo(() => {
-    const elapsedMins = Math.max(0, (now - (activePet.lastUpdated || now)) / 60000);
-    const hunger = clamp(Math.round(activePet.hunger - elapsedMins * 0.45));
-    const happiness = clamp(Math.round(activePet.happiness - elapsedMins * 0.35));
-    const hygiene = clamp(Math.round(activePet.hygiene - elapsedMins * 0.3));
-    const energy = activePet.isSleeping
-      ? clamp(Math.round(activePet.energy + elapsedMins * 1.6))
-      : clamp(Math.round(activePet.energy - elapsedMins * 0.4));
-    const potty = clamp(Math.round((activePet.potty ?? 0) + elapsedMins * 0.4));
-    return { hunger, happiness, energy, hygiene, potty };
-  }, [activePet, now]);
+  const allPetsLiveStats = useMemo(() => {
+    const map = {};
+    allPetsList.forEach((p) => {
+      map[p.id] = computeLiveStatsForPet(p, now);
+    });
+    return map;
+  }, [allPetsList, now]);
 
+  const liveStats = allPetsLiveStats[activePet.id] || computeLiveStatsForPet(activePet, now);
   const needsPoop = liveStats.potty >= 60;
+
+  const targetFeedPet = world.pets[feedTargetPetId] || activePet;
+  const targetBathPet = world.pets[bathTargetPetId] || activePet;
 
   const movePetTo = useCallback((x, y, durationMs = 850) => {
     setPetPos((prev) => {
@@ -3488,14 +3383,25 @@ export default function App() {
     }, durationMs);
   }, []);
 
-  // Auto-wake check based on Jakarta schedule (05:00-06:00 WIB for night sleep, 15m for naps)
+  const moveCompanionTo = useCallback((buddyId, x, y, durationMs = 950) => {
+    setBuddyPositions((prev) => {
+      const curr = prev[buddyId] || { x: 74, y: 60, facing: 1 };
+      const facing = Math.abs(x - curr.x) > 1.5 ? (x >= curr.x ? 1 : -1) : curr.facing;
+      return { ...prev, [buddyId]: { x, y, facing } };
+    });
+    setBuddyWalking((prev) => ({ ...prev, [buddyId]: true }));
+    setTimeout(() => {
+      setBuddyWalking((prev) => ({ ...prev, [buddyId]: false }));
+    }, durationMs);
+  }, []);
+
+  // Auto-wake check based on Jakarta schedule
   useEffect(() => {
-    const petsList = Object.values(world.pets || {});
-    const dueToWake = petsList.some((p) => p.isSleeping && p.wakeAt && now >= p.wakeAt);
+    const dueToWake = allPetsList.some((p) => p.isSleeping && p.wakeAt && now >= p.wakeAt);
     if (!dueToWake) return;
 
-    const firstPet = petsList.find((p) => p.isSleeping) || Object.values(world.pets)[0];
-    const petCount = petsList.length;
+    const firstPet = allPetsList.find((p) => p.isSleeping) || allPetsList[0];
+    const petCount = allPetsList.length;
     setIsPetOnBed(false);
     movePetTo(48, 66, 750);
 
@@ -3532,7 +3438,7 @@ export default function App() {
         ? `All your pets just woke up full of energy!`
         : `${firstPet.name} just woke up full of energy!`
     );
-  }, [now, world.pets, movePetTo, triggerCutePartnerNotification, updateWorld]);
+  }, [now, allPetsList, movePetTo, triggerCutePartnerNotification, updateWorld]);
 
   // Commit pet updates + activity log + cute couple care notification
   const commitPetUpdate = useCallback(
@@ -3553,24 +3459,24 @@ export default function App() {
 
       updateWorld((prev) => {
         const nextPets = { ...prev.pets };
-        const targetIds =
-          targetPetIds === true
+        const idsToUpdate =
+          targetPetIds === 'ALL'
             ? Object.keys(prev.pets)
             : Array.isArray(targetPetIds)
             ? targetPetIds
-            : [prev.activePetId];
+            : [targetPetIds || prev.activePetId];
 
-        targetIds.forEach((pid) => {
+        idsToUpdate.forEach((pid) => {
           const pet = prev.pets[pid];
           if (!pet) return;
-          const isPrimary = pid === prev.activePetId;
+          const live = computeLiveStatsForPet(pet, Date.now());
           const basePet = {
             ...pet,
-            hunger: isPrimary ? liveStats.hunger : pet.hunger,
-            happiness: isPrimary ? liveStats.happiness : pet.happiness,
-            energy: isPrimary ? liveStats.energy : pet.energy,
-            hygiene: isPrimary ? liveStats.hygiene : pet.hygiene,
-            potty: isPrimary ? liveStats.potty : (pet.potty ?? 0),
+            hunger: live.hunger,
+            happiness: live.happiness,
+            energy: live.energy,
+            hygiene: live.hygiene,
+            potty: live.potty,
           };
           nextPets[pid] = {
             ...basePet,
@@ -3605,109 +3511,133 @@ export default function App() {
         triggerCutePartnerNotification(careEventObj.title, careEventObj.body);
       }
     },
-    [currentUser, liveStats, triggerCutePartnerNotification, updateWorld]
+    [currentUser, triggerCutePartnerNotification, updateWorld]
   );
 
-  // Monitor Hungry, Sleepy, Bath, and Bored states & fire notifications
+  // Monitor Hungry, Sleepy, Bath, and Bored states across all pets
   useEffect(() => {
-    if (!currentUser) return;
-    if (activePet.isSleeping) {
+    if (!currentUser || isAppMinimized) return;
+    const awakePets = allPetsList.filter((p) => !p.isSleeping);
+    if (awakePets.length === 0) {
       setActiveNeedAlert(null);
       return;
     }
 
-    const needsList = [
-      {
-        key: 'hungry',
-        isLow: liveStats.hunger <= 30,
-        emoji: '🍓',
-        title: `${activePet.name} is Hungry!`,
-        desc: 'Tap to head to the Dining Room for a yummy snack',
-        actionLabel: 'Feed',
-        onAction: () => {
-          setActiveTab('home');
-          setCurrentRoom('dining');
-          setShowFoodDrawer(true);
-          setIsSittingAtTable(true);
-          movePetTo(22, 54, 650);
-        },
-      },
-      {
-        key: 'sleepy',
-        isLow: liveStats.energy <= 25,
-        emoji: '🌙',
-        title: `${activePet.name} is Sleepy!`,
-        desc: 'Tap to go to the Bedroom and tuck into bed',
-        actionLabel: 'Bedtime',
-        onAction: () => {
-          setActiveTab('home');
-          setCurrentRoom('bedroom');
-          movePetTo(18, 44, 750);
-          setIsPetOnBed(true);
-        },
-      },
-      {
-        key: 'bath',
-        isLow: liveStats.hygiene <= 30,
-        emoji: '🫧',
-        title: `${activePet.name} Needs a Bath!`,
-        desc: 'Tap to scrub and rinse in the Spa Bathroom',
-        actionLabel: 'Bathe',
-        onAction: () => {
-          setActiveTab('home');
-          setCurrentRoom('bathroom');
-          setIsPetOnBed(false);
-          setShowBathGame(true);
-        },
-      },
-      {
-        key: 'bored',
-        isLow: liveStats.happiness <= 30,
-        emoji: '🎮',
-        title: `${activePet.name} is Bored!`,
-        desc: 'Tap to play a fun minigame in the Couple Arcade',
-        actionLabel: 'Play',
-        onAction: () => {
-          setActiveTab('arcade');
-        },
-      },
-    ];
+    let urgentNeed = null;
+    for (const pet of awakePets) {
+      const st = allPetsLiveStats[pet.id] || computeLiveStatsForPet(pet, now);
+      if (st.hunger <= 30) {
+        urgentNeed = {
+          key: `hungry_${pet.id}`,
+          emoji: '🍓',
+          title: `${pet.name} is Hungry!`,
+          desc: `Tap to feed ${pet.name} a yummy snack`,
+          actionLabel: 'Feed',
+          onAction: () => {
+            setActiveTab('home');
+            setCurrentRoom('dining');
+            setFeedTargetPetId(pet.id);
+            setShowFeedTargetPicker(false);
+            setShowFoodDrawer(true);
+            setSittingAtTablePetId(pet.id);
+            if (pet.id === activePet.id) {
+              movePetTo(22, 54, 650);
+              setPetFacing(1);
+            } else {
+              moveCompanionTo(pet.id, 78, 54, 650);
+            }
+          },
+        };
+        break;
+      }
+      if (st.energy <= 25) {
+        urgentNeed = {
+          key: `sleepy_${pet.id}`,
+          emoji: '🌙',
+          title: `${pet.name} is Sleepy!`,
+          desc: 'Tap to go to the Bedroom and tuck into bed',
+          actionLabel: 'Bedtime',
+          onAction: () => {
+            setActiveTab('home');
+            setCurrentRoom('bedroom');
+            movePetTo(18, 44, 750);
+            setIsPetOnBed(true);
+          },
+        };
+        break;
+      }
+      if (st.hygiene <= 30) {
+        urgentNeed = {
+          key: `bath_${pet.id}`,
+          emoji: '🫧',
+          title: `${pet.name} Needs a Bath!`,
+          desc: `Tap to scrub and rinse ${pet.name} in the Spa Bathroom`,
+          actionLabel: 'Bathe',
+          onAction: () => {
+            setActiveTab('home');
+            setCurrentRoom('bathroom');
+            setIsPetOnBed(false);
+            setBathTargetPetId(pet.id);
+            setShowBathGame(true);
+          },
+        };
+        break;
+      }
+      if (st.happiness <= 30) {
+        urgentNeed = {
+          key: `bored_${pet.id}`,
+          emoji: '🎮',
+          title: `${pet.name} is Bored!`,
+          desc: 'Tap to play a fun minigame in the Couple Arcade',
+          actionLabel: 'Play',
+          onAction: () => {
+            setActiveTab('arcade');
+          },
+        };
+        break;
+      }
+    }
 
-    const urgentNeed = needsList.find((n) => n.isLow) || null;
     setActiveNeedAlert(urgentNeed);
 
-    const nowTs = Date.now();
-    needsList.forEach((n) => {
-      if (n.isLow) {
-        const lastSent = notifiedNeedsRef.current[n.key] || 0;
-        if (nowTs - lastSent > 180000) {
-          notifiedNeedsRef.current[n.key] = nowTs;
-          playSfx('cuddle', muted);
-          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-            try {
-              new Notification(`${n.emoji} ${n.title}`, { body: n.desc });
-            } catch {
-              // Ignore browser notification restrictions
-            }
+    if (urgentNeed) {
+      const nowTs = Date.now();
+      const lastSent = notifiedNeedsRef.current[urgentNeed.key] || 0;
+      if (nowTs - lastSent > 180000) {
+        notifiedNeedsRef.current[urgentNeed.key] = nowTs;
+        playSfx('cuddle', muted);
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification(`${urgentNeed.emoji} ${urgentNeed.title}`, { body: urgentNeed.desc });
+          } catch {
+            // Ignore browser notification restrictions
           }
         }
-      } else {
-        delete notifiedNeedsRef.current[n.key];
       }
-    });
-  }, [currentUser, activePet.isSleeping, activePet.name, liveStats.hunger, liveStats.energy, liveStats.hygiene, liveStats.happiness, muted, movePetTo]);
+    }
+  }, [
+    currentUser,
+    isAppMinimized,
+    allPetsList,
+    allPetsLiveStats,
+    now,
+    activePet.id,
+    muted,
+    movePetTo,
+    moveCompanionTo,
+  ]);
 
-  // Autonomous room wandering for ALL active pets when awake (pauses while minimized)
+  // Autonomous room wandering when awake on Home tab (pauses when minimized)
   useEffect(() => {
     if (
-      isAppMinimized ||
       !currentUser ||
+      isAppMinimized ||
       activeTab !== 'home' ||
       activePet.isSleeping ||
       droppedItem ||
       isPetOnBed ||
       isPooping ||
-      isSittingAtTable
+      sittingAtTablePetId
     ) {
       return;
     }
@@ -3716,102 +3646,57 @@ export default function App() {
       const ny = 56 + Math.random() * 20;
       movePetTo(nx, ny, 1000);
 
-      companionPets.forEach((buddy) => {
-        const bx = 18 + Math.random() * 62;
+      companionPets.forEach((buddy, idx) => {
+        const bx = idx % 2 === 0 ? 55 + Math.random() * 30 : 16 + Math.random() * 30;
         const by = 54 + Math.random() * 22;
-        setCompanionPositions((prev) => {
-          const prevPos = prev[buddy.id] || { x: 74, y: 60, facing: 1, walking: false };
-          return {
-            ...prev,
-            [buddy.id]: {
-              x: bx,
-              y: by,
-              facing: Math.abs(bx - prevPos.x) > 1.5 ? (bx >= prevPos.x ? 1 : -1) : prevPos.facing,
-              walking: true,
-            },
-          };
-        });
-        setTimeout(() => {
-          setCompanionPositions((prev) => ({
-            ...prev,
-            [buddy.id]: { ...(prev[buddy.id] || { x: bx, y: by, facing: 1 }), walking: false },
-          }));
-        }, 1000);
+        moveCompanionTo(buddy.id, bx, by, 1050);
       });
-    }, 4500);
+    }, 5000);
     return () => clearInterval(wander);
   }, [
-    isAppMinimized,
     currentUser,
+    isAppMinimized,
     activeTab,
     activePet.isSleeping,
     droppedItem,
     isPetOnBed,
     isPooping,
-    isSittingAtTable,
-    movePetTo,
+    sittingAtTablePetId,
     companionPets,
+    movePetTo,
+    moveCompanionTo,
   ]);
 
-  // Helper to close food drawer & return pets from dining chairs to normal floor
   const handleCloseFoodDrawer = useCallback(() => {
     setShowFoodDrawer(false);
-    setFeedingPetId(null);
-    if (isSittingAtTable) {
-      setIsSittingAtTable(false);
-      movePetTo(48, 68, 750);
-    }
-  }, [isSittingAtTable, movePetTo]);
-
-  const handleSelectPetToFeed = useCallback(
-    (pet) => {
-      if (pet.isSleeping) {
-        showToast(`Wake ${pet.name} up before mealtime!`);
-        return;
-      }
-      const stats = getPetLiveStats(pet);
-      if (stats.hunger >= 100) {
-        showToast(`${pet.name} is already 100% full! 🍓`);
-        return;
-      }
-      playSfx('cuddle', effectiveMuted);
-      setFeedingPetId(pet.id);
-      setIsSittingAtTable(true);
-      setIsPetOnBed(false);
-      if (pet.id === activePet.id) {
-        movePetTo(22, 54, 700);
-        setTimeout(() => setPetFacing(1), 650);
+    setShowFeedTargetPicker(false);
+    if (sittingAtTablePetId) {
+      if (sittingAtTablePetId === activePet.id) {
+        movePetTo(48, 68, 750);
       } else {
-        setCompanionPositions((prev) => ({
-          ...prev,
-          [pet.id]: { x: 78, y: 54, facing: -1, walking: true },
-        }));
-        setTimeout(() => {
-          setCompanionPositions((prev) => ({
-            ...prev,
-            [pet.id]: { ...(prev[pet.id] || { x: 78, y: 54, facing: -1 }), walking: false },
-          }));
-        }, 700);
+        moveCompanionTo(sittingAtTablePetId, 74, 60, 750);
       }
-    },
-    [activePet.id, effectiveMuted, getPetLiveStats, movePetTo, showToast]
-  );
+      setSittingAtTablePetId(null);
+    }
+  }, [sittingAtTablePetId, activePet.id, movePetTo, moveCompanionTo]);
 
-  // Interactions
   const handleStageTap = (e) => {
     if (activeTab !== 'home' || activePet.isSleeping || isPooping) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = clamp(((e.clientX - rect.left) / rect.width) * 100, 14, 86);
     const y = clamp(((e.clientY - rect.top) / rect.height) * 100, 48, 78);
     setIsPetOnBed(false);
-    if (isSittingAtTable) {
-      setIsSittingAtTable(false);
+    setShowHamburgerMenu(false);
+    if (sittingAtTablePetId || showFeedTargetPicker) {
+      setSittingAtTablePetId(null);
       setShowFoodDrawer(false);
+      setShowFeedTargetPicker(false);
     }
     movePetTo(x, y, 850);
   };
 
-  const handleCuddlePet = (e, targetPet = activePet, customPos = null) => {
+  // Individual Cuddle Handler: only cuddles the clicked pet!
+  const handleCuddleSpecificPet = (e, targetPet, posOverride = null) => {
     e.stopPropagation();
     expandStatusCard();
     if (targetPet.isSleeping) {
@@ -3819,77 +3704,73 @@ export default function App() {
       showToast(`${targetPet.name} is dreaming sweetly... 💤${wakeStr}`);
       return;
     }
-    playSfx('cuddle', effectiveMuted);
-    setIsHappy(true);
-    setTimeout(() => setIsHappy(false), 950);
-    const heartPos = customPos || petPos;
+    playSfx('cuddle', muted);
+    setHappyPetId(targetPet.id);
+    setTimeout(() => {
+      setHappyPetId((curr) => (curr === targetPet.id ? null : curr));
+    }, 950);
+
+    const heartX = posOverride ? posOverride.x : petPos.x;
+    const heartY = posOverride ? posOverride.y - 10 : petPos.y - 10;
     const id = Date.now() + Math.random();
-    setFloatingHearts((prev) => [...prev.slice(-4), { id, x: heartPos.x, y: heartPos.y - 10 }]);
+    setFloatingHearts((prev) => [...prev.slice(-4), { id, x: heartX, y: heartY }]);
     setTimeout(() => setFloatingHearts((prev) => prev.filter((h) => h.id !== id)), 1100);
-    const targetStats = getPetLiveStats(targetPet);
+
     commitPetUpdate(
-      () => ({
-        hunger: targetStats.hunger,
-        happiness: clamp(targetStats.happiness + 8),
-        energy: targetStats.energy,
-        hygiene: targetStats.hygiene,
-        potty: targetStats.potty,
-      }),
+      (p) => ({ happiness: clamp(p.happiness + 8) }),
       0,
       `gave ${targetPet.name} warm cuddles!`,
       '💖',
-      [targetPet.id]
+      targetPet.id
     );
+    showToast(`Cuddled ${targetPet.name}! 💖`);
   };
 
+  // Feed ONLY the chosen target pet (with 100% fullness guard)
   const handleFeedPet = (food) => {
-    const targetPet = (feedingPetId && world.pets?.[feedingPetId]) || activePet;
-    if (targetPet.isSleeping) {
-      showToast(`Wake ${targetPet.name} up before feeding!`);
+    const pet = targetFeedPet;
+    if (!pet) return;
+    if (pet.isSleeping) {
+      showToast(`Wake ${pet.name} up before feeding!`);
       return;
     }
-    const targetStats = getPetLiveStats(targetPet);
-    if (targetStats.hunger >= 100) {
-      showToast(`${targetPet.name} is already 100% full! 🍓`);
+    const currentHunger = allPetsLiveStats[pet.id]?.hunger ?? pet.hunger;
+    if (currentHunger >= 100) {
+      showToast(`${pet.name} is already 100% full! 🍓✨`);
       return;
     }
     if (world.coins < food.cost) {
       showToast('Not enough coins! Play in Games to earn more.');
       return;
     }
-    playSfx('eat', effectiveMuted);
+
+    playSfx('eat', muted);
     setShowFoodDrawer(false);
+    setShowFeedTargetPicker(false);
     setCurrentRoom('dining');
-    setIsSittingAtTable(true);
-    const isPrimary = targetPet.id === activePet.id;
-    if (isPrimary) {
+    setSittingAtTablePetId(pet.id);
+
+    if (pet.id === activePet.id) {
       movePetTo(22, 54, 550);
       setPetFacing(1);
     } else {
-      setCompanionPositions((prev) => ({
-        ...prev,
-        [targetPet.id]: { x: 78, y: 54, facing: -1, walking: false },
-      }));
+      moveCompanionTo(pet.id, 78, 54, 550);
     }
     setDroppedItem({ emoji: food.emoji, x: 50, y: 54 });
 
     setTimeout(() => {
-      setIsEating(true);
+      setEatingPetId(pet.id);
       setTimeout(() => {
-        setIsEating(false);
+        setEatingPetId(null);
         setDroppedItem(null);
-        setIsHappy(true);
+        setHappyPetId(pet.id);
         setTimeout(() => {
-          setIsHappy(false);
-          setIsSittingAtTable(false);
-          setFeedingPetId(null);
-          if (isPrimary) {
+          setHappyPetId(null);
+          setSittingAtTablePetId(null);
+          if (pet.id === activePet.id) {
             movePetTo(48, 68, 750);
           } else {
-            setCompanionPositions((prev) => ({
-              ...prev,
-              [targetPet.id]: { x: 72, y: 64, facing: -1, walking: false },
-            }));
+            moveCompanionTo(pet.id, 74, 60, 750);
           }
         }, 700);
       }, 1100);
@@ -3897,72 +3778,66 @@ export default function App() {
 
     const cuteFeedNotif = {
       title: `${food.emoji} Yummy Snack Time!`,
-      body: `${currentUser} fed ${targetPet.name} a yummy ${food.name}! Nom nom~ 💕`,
+      body: `${currentUser} fed ${pet.name} a yummy ${food.name}! Nom nom~ 💕`,
     };
 
     commitPetUpdate(
-      () => ({
-        hunger: clamp(targetStats.hunger + food.hunger),
-        happiness: clamp(targetStats.happiness + food.happiness),
-        energy: targetStats.energy,
-        hygiene: targetStats.hygiene,
-        potty: clamp(targetStats.potty + 28),
+      (p) => ({
+        hunger: clamp(p.hunger + food.hunger),
+        happiness: clamp(p.happiness + food.happiness),
+        potty: clamp((p.potty ?? 0) + 28),
       }),
       -food.cost,
-      `fed ${targetPet.name} ${food.name} ${food.emoji} at the dining table!`,
+      `fed ${pet.name} ${food.name} ${food.emoji} at the dining table!`,
       food.emoji,
-      [targetPet.id],
+      pet.id,
       cuteFeedNotif
     );
   };
 
+  // Feed homemade cooked meal ONLY to the chosen target pet (with 100% fullness guard)
   const handleFeedCooked = (recipe) => {
-    const targetPet = (feedingPetId && world.pets?.[feedingPetId]) || activePet;
-    if (targetPet.isSleeping) {
-      showToast(`Wake ${targetPet.name} up before feeding!`);
+    const pet = targetFeedPet;
+    if (!pet) return;
+    if (pet.isSleeping) {
+      showToast(`Wake ${pet.name} up before feeding!`);
       return;
     }
-    const targetStats = getPetLiveStats(targetPet);
-    if (targetStats.hunger >= 100) {
-      showToast(`${targetPet.name} is already 100% full! 🍓`);
+    const currentHunger = allPetsLiveStats[pet.id]?.hunger ?? pet.hunger;
+    if (currentHunger >= 100) {
+      showToast(`${pet.name} is already 100% full! 🍽️✨`);
       return;
     }
     const count = world.cookedInventory?.[recipe.id] || 0;
     if (count <= 0) return;
 
-    playSfx('eat', effectiveMuted);
+    playSfx('eat', muted);
     setShowFoodDrawer(false);
+    setShowFeedTargetPicker(false);
     setCurrentRoom('dining');
-    setIsSittingAtTable(true);
-    const isPrimary = targetPet.id === activePet.id;
-    if (isPrimary) {
+    setSittingAtTablePetId(pet.id);
+
+    if (pet.id === activePet.id) {
       movePetTo(22, 54, 550);
       setPetFacing(1);
     } else {
-      setCompanionPositions((prev) => ({
-        ...prev,
-        [targetPet.id]: { x: 78, y: 54, facing: -1, walking: false },
-      }));
+      moveCompanionTo(pet.id, 78, 54, 550);
     }
     setDroppedItem({ emoji: recipe.emoji, x: 50, y: 54 });
 
     setTimeout(() => {
-      setIsEating(true);
+      setEatingPetId(pet.id);
       setTimeout(() => {
-        setIsEating(false);
+        setEatingPetId(null);
         setDroppedItem(null);
-        setIsHappy(true);
+        setHappyPetId(pet.id);
         setTimeout(() => {
-          setIsHappy(false);
-          setIsSittingAtTable(false);
-          setFeedingPetId(null);
-          if (isPrimary) {
+          setHappyPetId(null);
+          setSittingAtTablePetId(null);
+          if (pet.id === activePet.id) {
             movePetTo(48, 68, 750);
           } else {
-            setCompanionPositions((prev) => ({
-              ...prev,
-              [targetPet.id]: { x: 72, y: 64, facing: -1, walking: false },
-            }));
+            moveCompanionTo(pet.id, 74, 60, 750);
           }
         }, 700);
       }, 1100);
@@ -3972,25 +3847,27 @@ export default function App() {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       actor: currentUser,
       title: `👨‍🍳 Chef ${currentUser} Served Dinner!`,
-      body: `${currentUser} served homemade ${recipe.name} ${recipe.emoji} to ${targetPet.name}! 💖`,
+      body: `${currentUser} served homemade ${recipe.name} ${recipe.emoji} to ${pet.name}! 💖`,
       timestamp: Date.now(),
     };
     lastCareEventIdRef.current = cuteCookedNotif.id;
 
     updateWorld((prev) => {
       const nextCount = Math.max(0, (prev.cookedInventory?.[recipe.id] || 0) - 1);
+      const targetP = prev.pets[pet.id];
+      const live = computeLiveStatsForPet(targetP, Date.now());
       return {
         ...prev,
         cookedInventory: { ...(prev.cookedInventory || {}), [recipe.id]: nextCount },
         pets: {
           ...prev.pets,
-          [targetPet.id]: {
-            ...prev.pets[targetPet.id],
-            hunger: clamp(targetStats.hunger + recipe.hunger),
-            happiness: clamp(targetStats.happiness + recipe.happiness),
-            energy: targetStats.energy,
-            hygiene: targetStats.hygiene,
-            potty: clamp(targetStats.potty + 32),
+          [pet.id]: {
+            ...targetP,
+            hunger: clamp(live.hunger + recipe.hunger),
+            happiness: clamp(live.happiness + recipe.happiness),
+            energy: live.energy,
+            hygiene: live.hygiene,
+            potty: clamp(live.potty + 32),
             lastUpdated: Date.now(),
           },
         },
@@ -3999,7 +3876,7 @@ export default function App() {
           {
             id: Math.random().toString(36).slice(2),
             actor: currentUser,
-            text: `served homemade ${recipe.name} ${recipe.emoji} to ${targetPet.name}!`,
+            text: `served homemade ${recipe.name} ${recipe.emoji} to ${pet.name}!`,
             emoji: recipe.emoji,
             timestamp: Date.now(),
           },
@@ -4012,7 +3889,7 @@ export default function App() {
 
   const handleToggleSleep = () => {
     const nextSleep = !activePet.isSleeping;
-    const petCount = Object.keys(world.pets).length;
+    const petCount = allPetsList.length;
     playSfx('sleep', muted);
     const wakeAtMs = nextSleep ? computeJakartaWakeAt(Date.now()) : null;
     const wakeFormatted = wakeAtMs ? formatWakeTimeWIB(wakeAtMs) : '';
@@ -4053,7 +3930,7 @@ export default function App() {
         ? `woke all pets up for a sunny new day!`
         : `woke ${activePet.name} up for a sunny new day!`,
       nextSleep ? '🌙' : '☀️',
-      true,
+      'ALL',
       cuteSleepNotif
     );
   };
@@ -4062,11 +3939,7 @@ export default function App() {
     playSfx('coin', muted);
     setShowCookModal(false);
     setCurrentRoom('dining');
-    setShowFoodDrawer(true);
-    setIsSittingAtTable(true);
     setIsPetOnBed(false);
-    movePetTo(22, 54, 700);
-    setTimeout(() => setPetFacing(1), 650);
 
     updateWorld((prev) => ({
       ...prev,
@@ -4086,7 +3959,7 @@ export default function App() {
         ...(prev.activities || []),
       ].slice(0, 40),
     }));
-    showToast(`${recipe.name} ${recipe.emoji} added to your Food Menu!`);
+    showToast(`${recipe.name} ${recipe.emoji} cooked! Tap the table to choose who eats it 🍽️`);
   };
 
   const handleToiletClick = () => {
@@ -4105,9 +3978,9 @@ export default function App() {
 
     setTimeout(() => {
       setIsPooping(false);
-      setIsHappy(true);
+      setHappyPetId(activePet.id);
       movePetTo(46, 66, 750);
-      setTimeout(() => setIsHappy(false), 900);
+      setTimeout(() => setHappyPetId(null), 900);
       commitPetUpdate(
         () => ({
           potty: 0,
@@ -4115,7 +3988,8 @@ export default function App() {
         }),
         5,
         `helped ${activePet.name} use the toilet and flushed! (+5🪙)`,
-        '🚽'
+        '🚽',
+        activePet.id
       );
       showToast(`${activePet.name} feels all better! +5🪙 🚽✨`);
     }, 1900);
@@ -4123,8 +3997,8 @@ export default function App() {
 
   const handleBedClick = (bedIndex = 0) => {
     if (activeTab !== 'home') return;
-    playSfx('cuddle', effectiveMuted);
-    const petCount = Object.keys(world.pets).length;
+    playSfx('cuddle', muted);
+    const petCount = allPetsList.length;
     const targetX = petCount > 1 ? 18 : bedIndex === 0 ? 18 : 48;
     const targetY = 44;
     movePetTo(targetX, targetY, 750);
@@ -4151,75 +4025,65 @@ export default function App() {
     }
   };
 
-  const handleStartBathForPet = (targetPet) => {
-    if (targetPet.isSleeping) {
-      showToast(`Wake ${targetPet.name} up before bath time!`);
+  // Start bath for a specific pet (blocked if hygiene is already 100%)
+  const handleStartBathForPet = (pet) => {
+    if (pet.isSleeping) {
+      showToast(`Wake ${pet.name} up before bath time!`);
       return;
     }
-    const stats = getPetLiveStats(targetPet);
-    if (stats.hygiene >= 100) {
-      showToast(`${targetPet.name} is already 100% sparkling clean! 🫧`);
+    const currentHygiene = allPetsLiveStats[pet.id]?.hygiene ?? pet.hygiene;
+    if (currentHygiene >= 100) {
+      showToast(`${pet.name} is already 100% sparkling clean! 🫧✨`);
       return;
     }
+    setBathTargetPetId(pet.id);
+    setShowBathTargetPicker(false);
     setCurrentRoom('bathroom');
     setIsPetOnBed(false);
-    setShowBathSelectModal(false);
-    setBathingPetId(targetPet.id);
     setShowBathGame(true);
   };
 
-  const handleBubbleBath = () => {
+  const handleTubClick = () => {
     if (allPetsList.length === 1) {
-      handleStartBathForPet(activePet);
+      handleStartBathForPet(allPetsList[0]);
       return;
     }
-    const cleanablePets = allPetsList.filter((p) => !p.isSleeping && getPetLiveStats(p).hygiene < 100);
-    if (cleanablePets.length === 0) {
-      const anySleeping = allPetsList.some((p) => p.isSleeping);
-      showToast(
-        anySleeping
-          ? 'Wake your pets up before bath time!'
-          : 'All pets are already 100% sparkling clean! 🫧'
-      );
+    const allClean = allPetsList.every((p) => (allPetsLiveStats[p.id]?.hygiene ?? p.hygiene) >= 100);
+    if (allClean) {
+      showToast(`All your pets are already 100% sparkling clean! 🫧✨`);
       return;
     }
-    setCurrentRoom('bathroom');
-    setIsPetOnBed(false);
-    setShowBathSelectModal(true);
+    setShowBathTargetPicker(true);
   };
 
   const handleCompleteBath = () => {
-    const targetPet = (bathingPetId && world.pets?.[bathingPetId]) || activePet;
-    const targetStats = getPetLiveStats(targetPet);
-    playSfx('coin', effectiveMuted);
+    const pet = targetBathPet;
+    playSfx('coin', muted);
     setShowBathGame(false);
-    setBathingPetId(null);
-    if (targetPet.id === activePet.id) {
+    if (pet.id === activePet.id) {
       movePetTo(64, 66, 750);
+    } else {
+      moveCompanionTo(pet.id, 72, 62, 750);
     }
     const cuteBathNotif = {
       title: `🫧 Squeaky Clean & Fluffy!`,
-      body: `${currentUser} gave ${targetPet.name} a bubbly spa bath! Smells like strawberries~ ✨`,
+      body: `${currentUser} gave ${pet.name} a bubbly spa bath! Smells like strawberries~ ✨`,
     };
     commitPetUpdate(
-      () => ({
-        hunger: targetStats.hunger,
-        happiness: clamp(targetStats.happiness + 14),
-        energy: targetStats.energy,
-        hygiene: 100,
-        potty: targetStats.potty,
-      }),
+      (p) => ({ hygiene: 100, happiness: clamp(p.happiness + 14) }),
       10,
-      `scrubbed & rinsed ${targetPet.name} in a bubble bath! (+10🪙)`,
+      `scrubbed & rinsed ${pet.name} in a bubble bath! (+10🪙)`,
       '🫧',
-      [targetPet.id],
+      pet.id,
       cuteBathNotif
     );
   };
 
   const handleBuyOrEquipOutfit = (item) => {
+    const targetId = wardrobePetId && world.pets[wardrobePetId] ? wardrobePetId : activePet.id;
+    const targetPet = world.pets[targetId] || activePet;
     const owned = (world.ownedOutfits || []).includes(item.id);
-    const currentOutfit = activePet.outfit || { hat: null, shirt: null, costume: null };
+    const currentOutfit = targetPet.outfit || { hat: null, shirt: null, costume: null };
     const isEquipped = currentOutfit[item.slot] === item.id;
 
     if (owned) {
@@ -4237,8 +4101,9 @@ export default function App() {
           return { outfit: updated };
         },
         0,
-        isEquipped ? `took ${item.name} off ${activePet.name}.` : `dressed ${activePet.name} in ${item.name} ${item.emoji}!`,
-        item.emoji
+        isEquipped ? `took ${item.name} off ${targetPet.name}.` : `dressed ${targetPet.name} in ${item.name} ${item.emoji}!`,
+        item.emoji,
+        targetId
       );
       showToast(isEquipped ? `Removed ${item.name}` : `Equipped ${item.name}! ${item.emoji}`);
       return;
@@ -4251,7 +4116,7 @@ export default function App() {
 
     playSfx('coin', muted);
     updateWorld((prev) => {
-      const pet = prev.pets[prev.activePetId];
+      const pet = prev.pets[targetId];
       const prevOut = pet?.outfit || { hat: null, shirt: null, costume: null };
       const updated = { ...prevOut, [item.slot]: item.id };
       if (item.slot === 'costume') updated.shirt = null;
@@ -4263,7 +4128,7 @@ export default function App() {
         ownedOutfits: [...(prev.ownedOutfits || []), item.id],
         pets: {
           ...prev.pets,
-          [prev.activePetId]: {
+          [targetId]: {
             ...pet,
             outfit: updated,
             happiness: clamp((pet?.happiness ?? 80) + 10),
@@ -4274,7 +4139,7 @@ export default function App() {
           {
             id: Math.random().toString(36).slice(2),
             actor: currentUser,
-            text: `bought ${item.name} ${item.emoji} for ${activePet.name} (-${item.cost}🪙)!`,
+            text: `bought ${item.name} ${item.emoji} for ${targetPet.name} (-${item.cost}🪙)!`,
             emoji: item.emoji,
             timestamp: Date.now(),
           },
@@ -4287,7 +4152,7 @@ export default function App() {
 
   const handleParkFetch = () => {
     if (activePet.isSleeping) {
-      showToast(`Wake ${activePet.name} up to play at the park!`);
+      showToast(`Wake your pets up to play at the park!`);
       return;
     }
     playSfx('coin', muted);
@@ -4297,6 +4162,9 @@ export default function App() {
     const ballY = 64 + Math.random() * 14;
     setDroppedItem({ emoji: '🎾', x: ballX, y: ballY });
     movePetTo(ballX, ballY, 850);
+    companionPets.forEach((buddy, idx) => {
+      moveCompanionTo(buddy.id, clamp(ballX + (idx % 2 === 0 ? 14 : -14), 16, 84), clamp(ballY + 4, 54, 78), 900);
+    });
     setTimeout(() => setDroppedItem(null), 1300);
 
     commitPetUpdate(
@@ -4307,67 +4175,27 @@ export default function App() {
       }),
       8,
       allPetsList.length > 1
-        ? `played fetch with all pets at Pet Park (+8🪙)!`
+        ? `played fetch with all the pets at Pet Park (+8🪙)!`
         : `played fetch with ${activePet.name} at Pet Park (+8🪙)!`,
       '🎾',
-      true
+      'ALL'
     );
-    showToast(
-      allPetsList.length > 1 ? `Everyone chased the ball! +8🪙` : `${activePet.name} caught the ball! +8🪙`
-    );
+    showToast(allPetsList.length > 1 ? `Everyone chased the ball! +8🪙` : `${activePet.name} caught the ball! +8🪙`);
   };
 
-  const handleClaimDailyBonus = () => {
-    if (!canClaimDaily) return;
-    playSfx('coin', muted);
-    const today = getTodayKey();
-    updateWorld((prev) => ({
-      ...prev,
-      coins: prev.coins + DAILY_BONUS_COINS,
-      streak: (prev.streak || 0) + 1,
-      lastDailyClaim: today,
-      activities: [
-        {
-          id: Math.random().toString(36).slice(2),
-          actor: currentUser,
-          text: `claimed the Daily Couple Bonus (+${DAILY_BONUS_COINS}🪙)!`,
-          emoji: '🎁',
-          timestamp: Date.now(),
-        },
-        ...(prev.activities || []),
-      ].slice(0, 40),
-    }));
-    showToast(`+${DAILY_BONUS_COINS}🪙 Daily Bonus claimed!`);
-  };
-
-  const handleSavePetName = (petId) => {
+  const handleSavePetName = (targetPetId) => {
     const trimmed = nameInput.trim();
-    const target = world.pets?.[petId];
-    if (!trimmed || !target) return;
-    const oldName = target.name;
-    updateWorld((prev) => ({
-      ...prev,
-      pets: {
-        ...prev.pets,
-        [petId]: {
-          ...prev.pets[petId],
-          name: trimmed,
-          lastUpdated: Date.now(),
-        },
-      },
-      activities: [
-        {
-          id: Math.random().toString(36).slice(2),
-          actor: currentUser || 'Ronald & Ulfah',
-          text: `renamed ${oldName} to ${trimmed}!`,
-          emoji: '🏷️',
-          timestamp: Date.now(),
-        },
-        ...(prev.activities || []),
-      ].slice(0, 40),
-    }));
-    setEditingPetId(null);
-    showToast(`Renamed ${oldName} to ${trimmed}!`);
+    const targetPet = world.pets[targetPetId];
+    if (!trimmed || !targetPet) return;
+    commitPetUpdate(
+      () => ({ name: trimmed }),
+      0,
+      `renamed ${targetPet.name} to ${trimmed}!`,
+      '🏷️',
+      targetPetId
+    );
+    setRenamingPetId(null);
+    showToast(`Renamed to ${trimmed}!`);
   };
 
   const handleSaveLoveNote = () => {
@@ -4395,7 +4223,10 @@ export default function App() {
   const handleSwitchRoom = (roomId) => {
     setCurrentRoom(roomId);
     setShowFoodDrawer(false);
-    setIsSittingAtTable(false);
+    setShowFeedTargetPicker(false);
+    setShowBathTargetPicker(false);
+    setSittingAtTablePetId(null);
+    setShowHamburgerMenu(false);
     if (!activePet.isSleeping) {
       setIsPetOnBed(false);
       movePetTo(46, 66, 650);
@@ -4414,7 +4245,7 @@ export default function App() {
     setTimeout(() => {
       const spec = rollGachaSpecies();
       playSfx('gacha', muted);
-      const existing = Object.values(world.pets).find((p) => p.speciesId === spec.id);
+      const existing = allPetsList.find((p) => p.speciesId === spec.id);
 
       if (existing) {
         updateWorld((prev) => ({
@@ -4448,13 +4279,14 @@ export default function App() {
           happiness: 95,
           energy: 95,
           hygiene: 100,
+          potty: 0,
+          outfit: { hat: null, shirt: null, costume: null },
           isSleeping: false,
           lastUpdated: Date.now(),
         };
         updateWorld((prev) => ({
           ...prev,
           coins: prev.coins - GACHA_COST,
-          activePetId: newPet.id,
           pets: { ...prev.pets, [newPet.id]: newPet },
           activities: [
             {
@@ -4505,6 +4337,75 @@ export default function App() {
     showToast(`+${coins}🪙 added to shared wallet!`);
   };
 
+  // Simple Couple Chat Send Handler
+  const chatMessages = world.chatMessages || [];
+  const unreadChatCount = chatOpen ? 0 : Math.max(0, chatMessages.length - lastSeenChatCount);
+
+  useEffect(() => {
+    if (chatOpen) {
+      setLastSeenChatCount(chatMessages.length);
+      setTimeout(() => {
+        chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
+    }
+  }, [chatOpen, chatMessages.length]);
+
+  const handleSendChatMessage = (e) => {
+    e?.preventDefault();
+    const trimmed = chatInput.trim();
+    if (!trimmed) return;
+    playSfx('cuddle', muted);
+    const msg = {
+      id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      sender: currentUser,
+      text: trimmed,
+      timestamp: Date.now(),
+    };
+    setChatInput('');
+    updateWorld((prev) => ({
+      ...prev,
+      chatMessages: [...(prev.chatMessages || []), msg].slice(-80),
+    }));
+  };
+
+  // Secret Mail Handlers (Ronald sends -> Ulfah sees package in Living Room -> View Once)
+  const handleSendSecretMail = (e) => {
+    e?.preventDefault();
+    if (!isRonald) return;
+    const trimmed = secretMailInput.trim();
+    if (!trimmed) return;
+    playSfx('gacha', muted);
+    const mailObj = {
+      id: `secret_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      from: 'Ronald',
+      to: 'Ulfah',
+      text: trimmed,
+      sentAt: Date.now(),
+    };
+    setSecretMailInput('');
+    setShowSecretMailComposer(false);
+    updateWorld((prev) => ({
+      ...prev,
+      secretMailForUlfah: mailObj,
+    }));
+    showToast('Secret package delivered to Ulfah’s Living Room! 🎁💌');
+  };
+
+  const handleOpenSecretPackage = () => {
+    if (isRonald || !world.secretMailForUlfah) return;
+    playSfx('gacha', muted);
+    setOpenedSecretMail(world.secretMailForUlfah);
+  };
+
+  const handleCloseOpenedSecretMail = () => {
+    setOpenedSecretMail(null);
+    updateWorld((prev) => ({
+      ...prev,
+      secretMailForUlfah: null,
+    }));
+    showToast('Secret letter vanished forever ✨💌');
+  };
+
   const leaderboard = useMemo(() => {
     const scores = world.scores || [];
     let rTotal = 0;
@@ -4522,40 +4423,6 @@ export default function App() {
     }
     return { rTotal, uTotal, rGames, uGames };
   }, [world.scores]);
-
-  // Couple Chat Messages & Unread Counter
-  const chatMessages = useMemo(() => world.chatMessages || [], [world.chatMessages]);
-  const unreadChatCount = useMemo(() => {
-    if (showChat) return 0;
-    return Math.max(0, chatMessages.length - lastSeenChatCount);
-  }, [showChat, chatMessages.length, lastSeenChatCount]);
-
-  useEffect(() => {
-    if (showChat) {
-      setLastSeenChatCount(chatMessages.length);
-      setTimeout(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 60);
-    }
-  }, [showChat, chatMessages.length]);
-
-  const handleSendChatMessage = (e) => {
-    e?.preventDefault();
-    const text = chatInput.trim();
-    if (!text) return;
-    playSfx('cuddle', effectiveMuted);
-    const msg = {
-      id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      sender: currentUser,
-      text,
-      timestamp: Date.now(),
-    };
-    setChatInput('');
-    updateWorld((prev) => ({
-      ...prev,
-      chatMessages: [...(prev.chatMessages || []), msg].slice(-60),
-    }));
-  };
 
   const glassPill =
     'bg-[#FFFDF9]/90 backdrop-blur-md border-[1.5px] border-[#E6D8C5] text-[#3B2618] shadow-[0_3px_0_#E6D8C5]';
@@ -4591,7 +4458,10 @@ export default function App() {
               Ronald &amp; Ulfah
             </h1>
             <p className="text-xs font-semibold text-[#8C6D56]">
-              Tap your name to check in on <span className="text-[#D95D78] font-bold">{activePet.name}</span>
+              Tap your name to check in on{' '}
+              <span className="text-[#D95D78] font-bold">
+                {allPetsList.length > 1 ? allPetsList.map((p) => p.name).join(' & ') : activePet.name}
+              </span>
             </p>
           </div>
 
@@ -4637,13 +4507,15 @@ export default function App() {
     );
   }
 
+  const activeWardrobePet = (wardrobePetId && world.pets[wardrobePetId]) || activePet;
+
   // ============================================================================
   // SCREEN 2: FULLSCREEN PHONE-SIZED INTERACTIVE ROOM & TRANSLUCENT UI
   // ============================================================================
   return (
     <div
       className={`playful-font min-h-[100dvh] w-full flex items-center justify-center paper-grain sm:p-4 ${
-        isAppMinimized ? 'app-minimized' : ''
+        isAppMinimized ? 'app-paused' : ''
       }`}
     >
       <style>{PET_ANIMATION_CSS}</style>
@@ -4662,25 +4534,36 @@ export default function App() {
               setActiveTab('arcade');
             }}
             onTableClick={() => {
-              playSfx('cuddle', effectiveMuted);
-              if (showFoodDrawer) {
+              playSfx('cuddle', muted);
+              if (showFoodDrawer || showFeedTargetPicker) {
                 handleCloseFoodDrawer();
               } else {
-                const feedablePets = allPetsList.filter((p) => !p.isSleeping && getPetLiveStats(p).hunger < 100);
-                if (feedablePets.length === 0) {
-                  const anySleeping = allPetsList.some((p) => p.isSleeping);
-                  showToast(
-                    anySleeping
-                      ? 'Wake your pets up before mealtime!'
-                      : 'All pets are already 100% full! 🍓'
-                  );
+                if (activePet.isSleeping) {
+                  showToast(`Wake your pets up before mealtime!`);
                   return;
                 }
-                setShowFoodDrawer(true);
                 if (allPetsList.length === 1) {
-                  handleSelectPetToFeed(activePet);
+                  const single = allPetsList[0];
+                  const h = allPetsLiveStats[single.id]?.hunger ?? single.hunger;
+                  if (h >= 100) {
+                    showToast(`${single.name} is already 100% full! 🍓✨`);
+                    return;
+                  }
+                  setFeedTargetPetId(single.id);
+                  setShowFoodDrawer(true);
+                  setSittingAtTablePetId(single.id);
+                  setIsPetOnBed(false);
+                  movePetTo(22, 54, 700);
+                  setTimeout(() => setPetFacing(1), 650);
                 } else {
-                  setFeedingPetId(null);
+                  const allFull = allPetsList.every(
+                    (p) => (allPetsLiveStats[p.id]?.hunger ?? p.hunger) >= 100
+                  );
+                  if (allFull) {
+                    showToast(`All your pets are already 100% full! 🍓✨`);
+                    return;
+                  }
+                  setShowFeedTargetPicker(true);
                 }
               }
             }}
@@ -4691,10 +4574,11 @@ export default function App() {
             }}
             onBedClick={handleBedClick}
             onLampClick={handleLampClick}
-            onTubClick={handleBubbleBath}
+            onTubClick={handleTubClick}
             onToiletClick={handleToiletClick}
             onWardrobeClick={() => {
               playSfx('cuddle', muted);
+              setWardrobePetId(activePet.id);
               setActiveTab('wardrobe');
             }}
             onBoardClick={() => {
@@ -4722,59 +4606,203 @@ export default function App() {
             </button>
           )}
 
+          {/* SECRET PACKAGE IN ULFAH'S LIVING ROOM ONLY (VIEW ONCE) */}
+          {!isRonald && currentRoom === 'living' && activeTab === 'home' && world.secretMailForUlfah && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenSecretPackage();
+              }}
+              style={{ left: '52%', top: '76%' }}
+              className="group absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center active:scale-90 transition cursor-pointer"
+              title="A secret package from Ronald!"
+            >
+              {/* Realistic 3D-shaded Kraft Parcel Box with Ribbon, Packing Tape & Hanging Tag */}
+              <div className="relative w-[78px] h-[72px] pet-tilt">
+                <svg
+                  viewBox="0 0 110 100"
+                  className="w-full h-full overflow-visible drop-shadow-[0_8px_10px_rgba(59,38,24,0.34)]"
+                >
+                  <defs>
+                    <linearGradient id="kraftTop" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#E6C396" />
+                      <stop offset="100%" stopColor="#CFA36E" />
+                    </linearGradient>
+                    <linearGradient id="kraftLeft" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#C89B66" />
+                      <stop offset="100%" stopColor="#A97B48" />
+                    </linearGradient>
+                    <linearGradient id="kraftRight" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#B38452" />
+                      <stop offset="100%" stopColor="#8E6334" />
+                    </linearGradient>
+                    <linearGradient id="satinRibbon" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#F43F5E" />
+                      <stop offset="50%" stopColor="#E11D48" />
+                      <stop offset="100%" stopColor="#BE123C" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Soft Ground Contact Shadow */}
+                  <ellipse cx="55" cy="91" rx="38" ry="8" fill="#3B2618" opacity="0.28" />
+
+                  {/* Isometric Cardboard Box Faces */}
+                  {/* Left Front Face */}
+                  <polygon
+                    points="20,42 55,58 55,90 20,74"
+                    fill="url(#kraftLeft)"
+                    stroke="#6E4720"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                  {/* Right Front Face */}
+                  <polygon
+                    points="90,42 55,58 55,90 90,74"
+                    fill="url(#kraftRight)"
+                    stroke="#6E4720"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                  {/* Top Lid Face */}
+                  <polygon
+                    points="55,26 90,42 55,58 20,42"
+                    fill="url(#kraftTop)"
+                    stroke="#6E4720"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Subtle Cardboard Seam & Shipping Stamp */}
+                  <line x1="37.5" y1="34" x2="72.5" y2="50" stroke="#9A6B3B" strokeWidth="1" opacity="0.55" />
+                  <rect
+                    x="65"
+                    y="61"
+                    width="15"
+                    height="10"
+                    rx="1.5"
+                    fill="#FFFDF9"
+                    opacity="0.88"
+                    transform="skewY(-24) translate(0, 29)"
+                  />
+
+                  {/* Vertical Satin Ribbon Bands */}
+                  {/* Left Wrap */}
+                  <polygon points="34,35 41,38 41,83 34,80" fill="url(#satinRibbon)" />
+                  <polygon points="34,35 41,38 76,54 69,51" fill="url(#satinRibbon)" />
+                  {/* Right Wrap */}
+                  <polygon points="69,35 76,38 76,80 69,83" fill="url(#satinRibbon)" />
+                  <polygon points="69,35 76,38 41,54 34,51" fill="url(#satinRibbon)" />
+
+                  {/* Satin Bow Loops on Top */}
+                  <path
+                    d="M 55 41 C 41 28 33 38 46 43 Z"
+                    fill="#FB7185"
+                    stroke="#9F1239"
+                    strokeWidth="1.3"
+                  />
+                  <path
+                    d="M 55 41 C 69 28 77 38 64 43 Z"
+                    fill="#F43F5E"
+                    stroke="#9F1239"
+                    strokeWidth="1.3"
+                  />
+                  {/* Bow Tails */}
+                  <path d="M 53 43 L 44 53 L 49 54 L 55 45 Z" fill="#E11D48" />
+                  <path d="M 57 43 L 66 53 L 61 54 L 55 45 Z" fill="#BE123C" />
+                  {/* Center Knot */}
+                  <ellipse cx="55" cy="41.5" rx="4.2" ry="3.2" fill="#FDA4AF" stroke="#9F1239" strokeWidth="1.3" />
+
+                  {/* Hanging Kraft Gift Tag ("For Ulfah") */}
+                  <line x1="57" y1="43" x2="77" y2="56" stroke="#78350F" strokeWidth="1.2" />
+                  <g transform="translate(75, 53) rotate(14)">
+                    <rect
+                      x="0"
+                      y="0"
+                      width="24"
+                      height="13"
+                      rx="2.5"
+                      fill="#FFFBEB"
+                      stroke="#92400E"
+                      strokeWidth="1.3"
+                    />
+                    <circle cx="3.5" cy="6.5" r="1.2" fill="#92400E" />
+                    <text x="14" y="9" textAnchor="middle" fontSize="6" fontWeight="900" fill="#78350F">
+                      Ulfah
+                    </text>
+                  </g>
+                </svg>
+              </div>
+
+              <span className="px-2.5 py-0.5 -mt-0.5 rounded-full bg-[#FFFDF9]/95 border-[1.5px] border-[#D95D78] text-[9.5px] font-extrabold text-[#B83250] shadow-[0_2px_0_#ECC5CE] whitespace-nowrap group-hover:scale-105 transition">
+                Open me 💌
+              </span>
+            </button>
+          )}
+
+          {/* ALL COMPANION PETS ACTIVE TOGETHER IN THE ROOM */}
           {(!activePet.isSleeping || currentRoom === 'bedroom') &&
             companionPets.map((buddy, idx) => {
               const buddyIsSleeping = buddy.isSleeping || activePet.isSleeping;
               const buddyOnBed = currentRoom === 'bedroom' && (isPetOnBed || buddyIsSleeping);
-              const buddyAtTable = currentRoom === 'dining' && isSittingAtTable && feedingPetId === buddy.id;
-              const wanderState = companionPositions[buddy.id];
+              const buddyAtTable = currentRoom === 'dining' && sittingAtTablePetId === buddy.id;
+              const dynPos = buddyPositions[buddy.id];
+              const buddyAge = Math.max(60000, now - (buddy.adoptedAt || now));
+              const buddyGrowth = getGrowthStage(buddyAge);
 
               const bx = buddyOnBed
                 ? idx === 0
-                  ? 48
-                  : 33
+                  ? '48%'
+                  : '33%'
                 : buddyAtTable
-                ? 78
-                : wanderState?.x ?? (idx === 0 ? 74 : 24);
+                ? '78%'
+                : dynPos
+                ? `${dynPos.x}%`
+                : idx === 0
+                ? '74%'
+                : '24%';
               const by = buddyOnBed
                 ? idx === 0
-                  ? 44
-                  : 48
+                  ? '44%'
+                  : '48%'
                 : buddyAtTable
-                ? 54
-                : wanderState?.y ?? (idx === 0 ? 60 : 62);
+                ? '54%'
+                : dynPos
+                ? `${dynPos.y}%`
+                : idx === 0
+                ? '60%'
+                : '62%';
 
-              const buddyFacing = buddyAtTable ? -1 : wanderState?.facing ?? 1;
-              const buddyWalking = !buddyOnBed && !buddyAtTable && !buddyIsSleeping && Boolean(wanderState?.walking);
-              const buddyAgeMs = Math.max(60000, now - (buddy.adoptedAt || now));
-              const buddyScale = getGrowthStage(buddyAgeMs).scale;
+              const buddyFacing = buddyAtTable ? -1 : dynPos?.facing ?? -1;
 
               return (
                 <div
                   key={buddy.id}
-                  onClick={(e) => handleCuddlePet(e, buddy, { x: bx, y: by })}
+                  onClick={(e) =>
+                    handleCuddleSpecificPet(e, buddy, { x: parseFloat(bx), y: parseFloat(by) })
+                  }
                   style={{
-                    left: `${bx}%`,
-                    top: `${by}%`,
-                    transform: `translate(-50%, -50%) scale(${buddyScale})`,
-                    transition: 'left 850ms cubic-bezier(0.34,1.2,0.64,1), top 850ms cubic-bezier(0.34,1.2,0.64,1)',
+                    left: bx,
+                    top: by,
+                    transform: `translate(-50%, -50%) scale(${buddyGrowth.scale})`,
+                    transition:
+                      'left 950ms cubic-bezier(0.34,1.2,0.64,1), top 950ms cubic-bezier(0.34,1.2,0.64,1)',
                   }}
                   className="absolute z-20 cursor-pointer active:scale-90"
-                  title={`Tap to cuddle ${buddy.name}`}
+                  title={`Tap to cuddle ${buddy.name}!`}
                 >
-                  {buddyAtTable && !isEating && !buddyIsSleeping && (
+                  {buddyAtTable && eatingPetId !== buddy.id && !buddyIsSleeping && (
                     <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-white/95 border-2 border-orange-300 shadow text-[9px] font-bold text-orange-700 whitespace-nowrap animate-bounce">
-                      🍽️ Waiting~
+                      😋 Yum~
                     </div>
                   )}
                   <AnimatedStickerPet
                     speciesId={buddy.speciesId}
                     outfit={buddy.outfit}
                     isSleeping={buddyIsSleeping}
-                    isWalking={buddyWalking}
-                    isEating={isEating && buddyAtTable}
-                    isWaiting={buddyAtTable && !isEating}
-                    isHappy={isHappy && feedingPetId === buddy.id}
+                    isWalking={Boolean(buddyWalking[buddy.id])}
+                    isEating={eatingPetId === buddy.id}
+                    isWaiting={buddyAtTable && eatingPetId !== buddy.id}
+                    isHappy={happyPetId === buddy.id}
                     facing={buddyFacing}
                     size={buddyOnBed || buddyAtTable ? 88 : 96}
                   />
@@ -4793,16 +4821,17 @@ export default function App() {
 
           {(!activePet.isSleeping || currentRoom === 'bedroom') && (
             <div
-              onClick={handleCuddlePet}
+              onClick={(e) => handleCuddleSpecificPet(e, activePet)}
               style={{
                 left: `${activePet.isSleeping && !isPetOnBed ? 18 : petPos.x}%`,
                 top: `${activePet.isSleeping && !isPetOnBed ? 44 : petPos.y}%`,
                 transform: `translate(-50%, -50%) scale(${growthInfo.scale})`,
-                transition: 'left 850ms cubic-bezier(0.34,1.2,0.64,1), top 850ms cubic-bezier(0.34,1.2,0.64,1)',
+                transition:
+                  'left 850ms cubic-bezier(0.34,1.2,0.64,1), top 850ms cubic-bezier(0.34,1.2,0.64,1)',
               }}
               className="absolute z-20 cursor-pointer active:scale-90"
             >
-              {isSittingAtTable && !isEating && !activePet.isSleeping ? (
+              {sittingAtTablePetId === activePet.id && eatingPetId !== activePet.id && !activePet.isSleeping ? (
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-white/95 border-2 border-orange-300 shadow text-[10px] font-bold text-orange-700 whitespace-nowrap animate-bounce">
                   🍽️ Waiting for food~
                 </div>
@@ -4831,9 +4860,9 @@ export default function App() {
                 outfit={activePet.outfit}
                 isSleeping={activePet.isSleeping}
                 isWalking={isWalking}
-                isEating={isEating || isPooping}
-                isWaiting={isSittingAtTable && !isEating}
-                isHappy={isHappy}
+                isEating={eatingPetId === activePet.id || isPooping}
+                isWaiting={sittingAtTablePetId === activePet.id && eatingPetId !== activePet.id}
+                isHappy={happyPetId === activePet.id}
                 facing={petFacing}
                 size={104}
               />
@@ -4851,8 +4880,8 @@ export default function App() {
           ))}
         </div>
 
-        {/* TOP TRANSLUCENT STATUS BAR */}
-        <header className="relative z-30 flex items-center justify-between px-3.5 pt-3.5 pb-1.5">
+        {/* TOP TRANSLUCENT STATUS BAR (CLEAN WITH 3-STRIPE MENU) */}
+        <header className="relative z-40 flex items-center justify-between px-3.5 pt-3.5 pb-1.5">
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => handleSelectUser(null)}
@@ -4866,7 +4895,6 @@ export default function App() {
               )}
             </button>
 
-            {/* LIVE JAKARTA CLOCK PILL (WIB) */}
             <div
               onClick={() =>
                 showToast(`Jakarta Time: ${jakartaTime.formattedTime} WIB (${jakartaTime.skyPalette.label})`)
@@ -4883,144 +4911,188 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-extrabold ${glassPill}`}>
+          <div className="relative flex items-center gap-1.5">
+            <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold ${glassPill}`}>
               <span>🪙</span>
               <span>{world.coins}</span>
             </div>
+
+            {/* 3-STRIPE HAMBURGER MENU BUTTON */}
             <button
-              onClick={() => {
-                setActiveTab('pets');
-                setEditingPetId(null);
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowHamburgerMenu((v) => !v);
               }}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-extrabold active:translate-y-0.5 transition ${glassPill}`}
-              title="Our Pets & Details"
+              className={`w-8 h-8 rounded-full flex items-center justify-center active:translate-y-0.5 transition ${glassPill}`}
+              title="Menu"
+              aria-label="Open Menu"
             >
-              <span>🐾</span>
-              <span>{allPetsList.length}</span>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#3B2618"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+              >
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+              </svg>
             </button>
-            <button
-              onClick={() => setActiveTab('leaderboard')}
-              className={`p-1.5 rounded-full active:translate-y-0.5 transition ${glassPill}`}
-              title="Ronald vs. Ulfah Leaderboard"
-            >
-              <IconTrophy className="w-3.5 h-3.5 text-[#C88A2E]" />
-            </button>
-            <button
-              onClick={() => setActiveTab('diary')}
-              className={`p-1.5 rounded-full active:translate-y-0.5 transition ${glassPill}`}
-              title="Shared Care Diary"
-            >
-              <IconBookOpen className="w-3.5 h-3.5 text-[#D95D78]" />
-            </button>
-            <button
-              onClick={() => setMuted((m) => !m)}
-              className={`p-1.5 rounded-full active:translate-y-0.5 transition ${glassPill}`}
-              title={muted ? 'Unmute SFX' : 'Mute SFX'}
-            >
-              {effectiveMuted ? <IconVolumeX className="w-3.5 h-3.5" /> : <IconVolume2 className="w-3.5 h-3.5" />}
-            </button>
+
+            {/* 3-STRIPE MENU DROPDOWN (PETS DETAIL, LEADERBOARD, SHARED CARE DIARY, SOUND) */}
+            {showHamburgerMenu && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-10 w-52 rounded-2xl bg-[#FFFDF9]/98 backdrop-blur-xl border-2 border-[#E6D8C5] shadow-[0_8px_24px_rgba(59,38,24,0.18)] p-1.5 space-y-1 z-50"
+              >
+                <button
+                  onClick={() => {
+                    setShowHamburgerMenu(false);
+                    setActiveTab('pets');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F5ECE0] text-left text-xs font-extrabold text-[#3B2618] transition"
+                >
+                  <span className="text-base">🐾</span>
+                  <span>Pets Detail ({allPetsList.length})</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowHamburgerMenu(false);
+                    setActiveTab('leaderboard');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F5ECE0] text-left text-xs font-extrabold text-[#3B2618] transition"
+                >
+                  <span className="text-base">🏆</span>
+                  <span>Leaderboard</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowHamburgerMenu(false);
+                    setActiveTab('diary');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F5ECE0] text-left text-xs font-extrabold text-[#3B2618] transition"
+                >
+                  <span className="text-base">📔</span>
+                  <span>Shared Care Diary</span>
+                </button>
+                <div className="h-px bg-[#EFE6D8] my-0.5" />
+                <button
+                  onClick={() => {
+                    setMuted((m) => !m);
+                    setShowHamburgerMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#F5ECE0] text-left text-xs font-extrabold text-[#6E4D37] transition"
+                >
+                  <span className="text-base">{muted ? '🔇' : '🔊'}</span>
+                  <span>{muted ? 'Unmute Sounds' : 'Mute Sounds'}</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* FLOATING COUPLE CHAT BUTTON (BOTTOM LEFT ABOVE DOCK) */}
+        {/* FLOATING SIMPLE COUPLE CHAT BUTTON & DRAWER (BOTTOM-LEFT) */}
         <div className="absolute left-3.5 bottom-[84px] z-40">
-          <button
-            onClick={() => {
-              playSfx('cuddle', effectiveMuted);
-              setShowChat((v) => !v);
-            }}
-            className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-90 ${glassPill} ${
-              showChat ? 'ring-2 ring-[#D95D78]' : ''
-            }`}
-            title="Chat with your partner"
-          >
-            <IconMessageCircle className="w-4 h-4 text-[#D95D78]" />
-            {unreadChatCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[#D95D78] text-white text-[9.5px] font-black flex items-center justify-center shadow">
-                {unreadChatCount}
-              </span>
-            )}
-          </button>
+          {!chatOpen ? (
+            <button
+              onClick={() => {
+                playSfx('cuddle', muted);
+                setChatOpen(true);
+              }}
+              className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 ${glassPill}`}
+              title="Open Couple Chat"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D95D78" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              {unreadChatCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#D95D78] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  {unreadChatCount}
+                </span>
+              )}
+            </button>
+          ) : (
+            <div className="w-[272px] rounded-[24px] bg-[#FFFDF9]/95 backdrop-blur-xl border-2 border-[#E6D8C5] shadow-[0_10px_28px_rgba(59,38,24,0.2)] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-3 py-2 bg-[#F7EFE4] border-b border-[#E6D8C5]">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs">💬</span>
+                  <span className="text-[11px] font-extrabold text-[#3B2618]">
+                    Ronald &amp; Ulfah Chat
+                  </span>
+                </div>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className="p-1 rounded-full hover:bg-[#E6D8C5]/60 text-[#6E4D37] text-xs font-black"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="h-44 overflow-y-auto px-2.5 py-2 space-y-1.5 bg-[#FAF6F0]/60">
+                {chatMessages.length === 0 ? (
+                  <p className="text-[10px] text-center text-[#A38873] font-semibold py-12">
+                    Say hi to {isRonald ? 'Ulfah' : 'Ronald'}! 💕
+                  </p>
+                ) : (
+                  chatMessages.map((m) => {
+                    const isMine = m.sender === currentUser;
+                    return (
+                      <div
+                        key={m.id}
+                        className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                      >
+                        <div
+                          className={`max-w-[85%] px-2.5 py-1.5 rounded-2xl text-[11px] font-semibold leading-snug break-words ${
+                            isMine
+                              ? 'bg-[#D95D78] text-white rounded-br-xs'
+                              : 'bg-white border border-[#E6D8C5] text-[#3B2618] rounded-bl-xs'
+                          }`}
+                        >
+                          {m.text}
+                        </div>
+                        <span className="text-[8.5px] font-bold text-[#A38873] px-1 mt-0.5">
+                          {m.sender} ·{' '}
+                          {new Date(m.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={chatBottomRef} />
+              </div>
+
+              <form
+                onSubmit={handleSendChatMessage}
+                className="flex items-center gap-1.5 p-2 bg-[#FFFDF9] border-t border-[#E6D8C5]"
+              >
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder={`Message ${isRonald ? 'Ulfah' : 'Ronald'}...`}
+                  maxLength={140}
+                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-full bg-[#F7EFE4] border border-[#E6D8C5] text-[11px] font-semibold text-[#3B2618] placeholder-[#A38873] focus:outline-none focus:border-[#D95D78]"
+                />
+                <button
+                  type="submit"
+                  className="w-7 h-7 rounded-full bg-[#D95D78] text-white flex items-center justify-center shrink-0 active:scale-90 transition"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </form>
+            </div>
+          )}
         </div>
 
-        {/* SIMPLE COUPLE CHAT POPUP */}
-        {showChat && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="absolute left-3.5 right-3.5 bottom-[132px] z-40 rounded-[26px] bg-[#FFFDF9]/95 backdrop-blur-xl border-2 border-[#E6D8C5] shadow-[0_8px_0_#E6D8C5,0_16px_32px_rgba(59,38,24,0.16)] p-3 space-y-2.5"
-          >
-            <div className="flex items-center justify-between pb-1.5 border-b border-[#EFE6D8]">
-              <div className="flex items-center gap-1.5">
-                <CoupleAvatar player={isRonald ? 'Ulfah' : 'Ronald'} size={22} />
-                <span className="serif-display text-xs font-bold text-[#3B2618]">
-                  Chat with {isRonald ? 'Ulfah' : 'Ronald'}
-                </span>
-              </div>
-              <button
-                onClick={() => setShowChat(false)}
-                className="p-1 rounded-full bg-[#F5ECE0] text-[#5C3D2E] hover:bg-[#EBDEC9] transition"
-              >
-                <IconX className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="h-40 overflow-y-auto space-y-1.5 pr-1">
-              {chatMessages.length === 0 ? (
-                <p className="text-[11px] font-semibold text-[#A38873] text-center py-12">
-                  Send a sweet message to {isRonald ? 'Ulfah' : 'Ronald'}! 💌
-                </p>
-              ) : (
-                chatMessages.map((m) => {
-                  const isMine = m.sender === currentUser;
-                  return (
-                    <div
-                      key={m.id}
-                      className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] px-3 py-1.5 rounded-2xl text-[11.5px] font-semibold leading-snug ${
-                          isMine
-                            ? 'bg-[#D95D78] text-white rounded-br-xs'
-                            : 'bg-[#F5ECE0] text-[#3B2618] border border-[#E6D8C5] rounded-bl-xs'
-                        }`}
-                      >
-                        {m.text}
-                      </div>
-                      <span className="text-[8.5px] font-bold text-[#A38873] mt-0.5 px-1">
-                        {m.sender} ·{' '}
-                        {new Date(m.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            <form onSubmit={handleSendChatMessage} className="flex items-center gap-1.5">
-              <input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder={`Message ${isRonald ? 'Ulfah' : 'Ronald'}...`}
-                maxLength={140}
-                className="flex-1 px-3 py-1.5 rounded-full border border-[#E6D8C5] bg-white text-xs font-semibold text-[#3B2618] focus:outline-none focus:border-[#D95D78]"
-              />
-              <button
-                type="submit"
-                className="p-2 rounded-full bg-[#D95D78] text-white active:scale-90 transition"
-                title="Send message"
-              >
-                <IconSend className="w-3.5 h-3.5" />
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* COLLAPSIBLE MUSIC PLAYER (AUTO-MINIMIZES TO MUSIC LOGO AFTER 3s IDLE) */}
+        {/* COLLAPSIBLE MUSIC PLAYER (BOTTOM-RIGHT ABOVE PET PARK) */}
         <audio
           ref={audioRef}
           src={playlist[trackIndex]?.file}
@@ -5031,8 +5103,45 @@ export default function App() {
           ref={fireplaceAudioRef}
           src="/music/fireplace.mp3"
           loop
-          preload="none"
+          preload="auto"
         />
+
+        {/* RONALD-ONLY PLUS MAIL ICON ON THE RIGHT OF THE SCREEN */}
+        {isRonald && activeTab === 'home' && (
+          <div className="absolute right-3.5 bottom-[132px] z-40">
+            <button
+              onClick={() => {
+                playSfx('cuddle', muted);
+                setShowSecretMailComposer(true);
+              }}
+              className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 ${glassPill}`}
+              title="Send a Secret Letter to Ulfah"
+            >
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#D95D78"
+                strokeWidth="2.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="2" y="5" width="16" height="13" rx="2.5" />
+                <path d="m2 7 8 6 8-6" />
+                <line x1="20" y1="9" x2="20" y2="15" />
+                <line x1="17" y1="12" x2="23" y2="12" />
+              </svg>
+              {world.secretMailForUlfah && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#D95D78] border border-white"
+                  title="Unopened package waiting in Ulfah's Living Room"
+                />
+              )}
+            </button>
+          </div>
+        )}
+
         <div className="absolute right-3.5 bottom-[84px] z-40">
           {!musicExpanded ? (
             <button
@@ -5042,11 +5151,7 @@ export default function App() {
               }`}
               title="Open Music Player"
             >
-              <IconMusic
-                className={`w-4 h-4 ${
-                  isPlayingMusic ? 'text-[#D95D78] animate-pulse' : 'text-[#6E4D37]'
-                }`}
-              />
+              <span className={`text-sm ${isPlayingMusic ? 'animate-pulse' : ''}`}>🎵</span>
             </button>
           ) : (
             <div
@@ -5054,38 +5159,30 @@ export default function App() {
               onTouchStart={resetMusicIdleTimer}
               className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full transition-all ${glassPill}`}
             >
-              <IconMusic
-                className={`w-3.5 h-3.5 shrink-0 ${
-                  isPlayingMusic ? 'text-[#D95D78] animate-pulse' : 'text-[#8C6D56]'
-                }`}
-              />
+              <span className="text-xs shrink-0">🎵</span>
               <span className="max-w-[92px] truncate text-[10.5px] font-extrabold text-[#3B2618]">
                 {playlist[trackIndex]?.title || 'No Track'}
               </span>
               <button
                 onClick={handleTogglePlayPause}
-                className="p-1.5 rounded-full bg-[#D95D78] text-white active:scale-90 transition"
+                className="w-6 h-6 rounded-full bg-[#D95D78] text-white text-[10px] font-black flex items-center justify-center active:scale-90 transition"
                 title={isPlayingMusic ? 'Pause' : 'Play'}
               >
-                {isPlayingMusic ? (
-                  <IconPause className="w-3 h-3" />
-                ) : (
-                  <IconPlay className="w-3 h-3" />
-                )}
+                {isPlayingMusic ? '⏸' : '▶'}
               </button>
               <button
                 onClick={handleSkipTrack}
-                className="p-1.5 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#5C3D2E] active:scale-90 transition"
+                className="w-6 h-6 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#5C3D2E] text-[10px] font-black flex items-center justify-center active:scale-90 transition"
                 title="Skip Song"
               >
-                <IconSkipForward className="w-3 h-3" />
+                ⏭
               </button>
               <button
                 onClick={handleStopMusic}
-                className="p-1.5 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#5C3D2E] active:scale-90 transition"
+                className="w-6 h-6 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#5C3D2E] text-[10px] font-black flex items-center justify-center active:scale-90 transition"
                 title="Stop Song"
               >
-                <IconSquare className="w-3 h-3" />
+                ⏹
               </button>
             </div>
           )}
@@ -5127,22 +5224,16 @@ export default function App() {
                 {!statusExpanded ? (
                   <button
                     onClick={expandStatusCard}
-                    className={`inline-flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-full active:scale-95 transition ${glassPill}`}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full active:scale-95 transition ${glassPill}`}
                     title="Tap to expand status"
                   >
-                    {allPetsList.map((p, i) => {
-                      const eMins = Math.max(0, (now - (p.lastUpdated || now)) / 60000);
-                      const pHunger = i === 0 && p.id === activePet.id ? liveStats.hunger : clamp(Math.round(p.hunger - eMins * 0.45));
-                      const pJoy = i === 0 && p.id === activePet.id ? liveStats.happiness : clamp(Math.round(p.happiness - eMins * 0.35));
-                      return (
-                        <span key={p.id} className="inline-flex items-center gap-1">
-                          {i > 0 && <span className="text-[#D6C7B2] mx-0.5">|</span>}
-                          <span className="serif-display text-xs font-bold text-[#3B2618]">{p.name}</span>
-                          <span className="text-[10px] font-extrabold text-[#E68A47]">🍓{pHunger}%</span>
-                          <span className="text-[10px] font-extrabold text-[#DF6A84]">💖{pJoy}%</span>
-                        </span>
-                      );
-                    })}
+                    <span className="serif-display text-xs font-bold text-[#3B2618]">
+                      {allPetsList.length > 1 ? allPetsList.map((p) => p.name).join(' & ') : activePet.name}
+                    </span>
+                    <span className="text-[10px] font-extrabold text-[#E68A47]">🍓{liveStats.hunger}%</span>
+                    <span className="text-[10px] font-extrabold text-[#DF6A84]">💖{liveStats.happiness}%</span>
+                    <span className="text-[10px] font-extrabold text-[#DFB048]">⚡{liveStats.energy}%</span>
+                    <span className="text-[10px] font-extrabold text-[#5BA4CF]">🫧{liveStats.hygiene}%</span>
                   </button>
                 ) : (
                   <div
@@ -5153,11 +5244,9 @@ export default function App() {
                     title="Tap to minimize status"
                   >
                     <div className="flex items-center justify-between gap-1.5">
-                      <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                         <span className="serif-display text-[15px] font-bold truncate text-[#3B2618]">
-                          {allPetsList.length > 1
-                            ? allPetsList.map((p) => p.name).join(' & ')
-                            : activePet.name}
+                          {allPetsList.length > 1 ? allPetsList.map((p) => p.name).join(' & ') : activePet.name}
                         </span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F5ECE0] border border-[#E6D8C5] text-[#7A5438] shrink-0">
                           {growthInfo.stage} · {formatAge(ageMs)}
@@ -5186,10 +5275,10 @@ export default function App() {
                             setNoteInput(world.loveNote?.text || '');
                             setIsEditingNote((v) => !v);
                           }}
-                          className="p-1.5 rounded-full bg-[#FDECEF] hover:bg-[#FAD9DF] text-[#D95D78] transition"
+                          className="p-1.5 rounded-full bg-[#FDECEF] hover:bg-[#FAD9DF] text-[#D95D78] transition text-[11px]"
                           title="Pin couple love note"
                         >
-                          <IconHeart className="w-3 h-3" />
+                          💖
                         </button>
                       </div>
                     </div>
@@ -5223,8 +5312,8 @@ export default function App() {
                           className="flex-1 px-2.5 py-1 rounded-xl border border-[#E6D8C5] text-[11px] font-semibold text-[#3B2618] bg-white focus:outline-none"
                           autoFocus
                         />
-                        <button onClick={handleSaveLoveNote} className="p-1.5 rounded-xl bg-[#D95D78] text-white">
-                          <IconSend className="w-3 h-3" />
+                        <button onClick={handleSaveLoveNote} className="px-2.5 py-1 rounded-xl bg-[#D95D78] text-white text-[10px] font-black">
+                          Pin
                         </button>
                       </div>
                     ) : (
@@ -5239,147 +5328,159 @@ export default function App() {
               </div>
             </div>
 
-            <div className="pointer-events-auto">
-              {showFoodDrawer && (
-                <div className="rounded-[30px] p-3.5 bg-white/88 backdrop-blur-xl border-2 border-white shadow-[0_8px_24px_rgba(249,115,22,0.18)] space-y-2.5 text-amber-950 max-h-[55vh] overflow-y-auto">
-                  {!feedingPetId ? (
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-sm font-bold text-orange-900">🍽️ Who do you want to feed?</span>
+            <div className="pointer-events-auto space-y-2">
+              {showFeedTargetPicker && (
+                <div className="rounded-[28px] p-3.5 bg-white/95 backdrop-blur-xl border-2 border-orange-200 shadow-[0_8px_24px_rgba(249,115,22,0.2)] space-y-2.5">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-black text-orange-950">🍽️ Who would you like to feed?</span>
+                    <button
+                      onClick={handleCloseFoodDrawer}
+                      className="p-1 rounded-full bg-orange-100 text-orange-700 text-xs font-black"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {allPetsList.map((pet) => {
+                      const pHunger = allPetsLiveStats[pet.id]?.hunger ?? pet.hunger;
+                      const isFull = pHunger >= 100;
+                      return (
                         <button
-                          onClick={handleCloseFoodDrawer}
-                          className="p-1 rounded-full bg-orange-100/80 text-orange-700 hover:bg-orange-200 transition"
+                          key={pet.id}
+                          onClick={() => {
+                            if (isFull) {
+                              showToast(`${pet.name} is already 100% full! 🍓✨`);
+                              return;
+                            }
+                            playSfx('cuddle', muted);
+                            setFeedTargetPetId(pet.id);
+                            setShowFeedTargetPicker(false);
+                            setShowFoodDrawer(true);
+                            setSittingAtTablePetId(pet.id);
+                            setIsPetOnBed(false);
+                            if (pet.id === activePet.id) {
+                              movePetTo(22, 54, 700);
+                              setTimeout(() => setPetFacing(1), 650);
+                            } else {
+                              moveCompanionTo(pet.id, 78, 54, 700);
+                            }
+                          }}
+                          className={`p-2.5 rounded-2xl border-2 flex items-center gap-2 text-left transition active:scale-95 ${
+                            isFull
+                              ? 'bg-gray-100 border-gray-200 opacity-60'
+                              : 'bg-amber-50/90 hover:bg-amber-100 border-amber-300'
+                          }`}
                         >
-                          <IconX className="w-4 h-4" />
+                          <AnimatedStickerPet speciesId={pet.speciesId} outfit={pet.outfit} size={42} />
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-gray-800 truncate">{pet.name}</div>
+                            <div className={`text-[10px] font-bold ${isFull ? 'text-emerald-600' : 'text-orange-700'}`}>
+                              {isFull ? '100% Full ✨' : `🍓 ${pHunger}%`}
+                            </div>
+                          </div>
                         </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {showFoodDrawer && (
+                <div className="rounded-[30px] p-3.5 bg-white/92 backdrop-blur-xl border-2 border-white shadow-[0_8px_24px_rgba(249,115,22,0.18)] space-y-2.5 text-amber-950 max-h-[55vh] overflow-y-auto">
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm font-bold text-orange-900 truncate">
+                        🍽️ Feeding {targetFeedPet.name}
+                      </span>
+                      {allPetsList.length > 1 && (
+                        <button
+                          onClick={() => {
+                            setShowFoodDrawer(false);
+                            setShowFeedTargetPicker(true);
+                          }}
+                          className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 border border-orange-300 shrink-0"
+                        >
+                          Switch
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          handleCloseFoodDrawer();
+                          setShowCookModal(true);
+                        }}
+                        className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold border-2 border-amber-300 active:scale-95 transition"
+                      >
+                        🍳 Cook
+                      </button>
+                      <button
+                        onClick={handleCloseFoodDrawer}
+                        className="p-1 rounded-full bg-orange-100/80 text-orange-700 hover:bg-orange-200 transition text-xs font-black"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {COOKING_RECIPES.some((r) => (world.cookedInventory?.[r.id] || 0) > 0) && (
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-black text-emerald-700 px-1">
+                        👨‍🍳 Homemade Cooked Meals (Free!)
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {allPetsList.map((pet) => {
-                          const stats = getPetLiveStats(pet);
-                          const isFull = stats.hunger >= 100;
-                          const isAsleep = pet.isSleeping;
-                          const disabled = isFull || isAsleep;
-                          return (
-                            <button
-                              key={pet.id}
-                              disabled={disabled}
-                              onClick={() => handleSelectPetToFeed(pet)}
-                              className={`p-2.5 rounded-2xl border-2 flex items-center gap-2 text-left transition ${
-                                disabled
-                                  ? 'bg-gray-100/90 border-gray-200 opacity-60 cursor-not-allowed'
-                                  : 'bg-amber-50/90 hover:bg-amber-100 border-amber-300 active:scale-95'
-                              }`}
-                            >
-                              <AnimatedStickerPet speciesId={pet.speciesId} outfit={pet.outfit} size={46} />
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {COOKING_RECIPES.filter((r) => (world.cookedInventory?.[r.id] || 0) > 0).map((rec) => (
+                          <button
+                            key={rec.id}
+                            onClick={() => handleFeedCooked(rec)}
+                            className="flex items-center justify-between p-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 border border-emerald-300 transition text-left active:scale-95"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-xl">{rec.emoji}</span>
                               <div className="min-w-0">
-                                <div className="text-xs font-black text-gray-800 truncate">{pet.name}</div>
-                                <div className="text-[10px] font-extrabold text-orange-700">
-                                  {isAsleep ? '💤 Sleeping' : isFull ? '✅ 100% Full' : `🍓 ${stats.hunger}%`}
-                                </div>
+                                <div className="text-[11px] font-extrabold text-gray-800 truncate">{rec.name}</div>
+                                <div className="text-[9px] text-emerald-700 font-bold">+{rec.hunger} Food</div>
                               </div>
-                            </button>
-                          );
-                        })}
+                            </div>
+                            <span className="text-[10px] font-black text-emerald-800 bg-white px-1.5 py-0.5 rounded-lg border border-emerald-200 shrink-0">
+                              x{world.cookedInventory[rec.id]}
+                            </span>
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {allPetsList.length > 1 && (
-                            <button
-                              onClick={() => {
-                                setFeedingPetId(null);
-                                setIsSittingAtTable(false);
-                              }}
-                              className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 text-[10px] font-black active:scale-95 transition"
-                            >
-                              ← Switch
-                            </button>
-                          )}
-                          <span className="text-sm font-bold text-orange-900 truncate">
-                            🍽️ Feeding {(world.pets?.[feedingPetId] || activePet).name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => {
-                              handleCloseFoodDrawer();
-                              setShowCookModal(true);
-                            }}
-                            className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold border-2 border-amber-300 active:scale-95 transition"
-                          >
-                            🍳 Cook
-                          </button>
-                          <button
-                            onClick={handleCloseFoodDrawer}
-                            className="p-1 rounded-full bg-orange-100/80 text-orange-700 hover:bg-orange-200 transition"
-                          >
-                            <IconX className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {COOKING_RECIPES.some((r) => (world.cookedInventory?.[r.id] || 0) > 0) && (
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-black text-emerald-700 px-1">
-                            👨‍🍳 Homemade Cooked Meals (Free!)
-                          </div>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {COOKING_RECIPES.filter((r) => (world.cookedInventory?.[r.id] || 0) > 0).map((rec) => (
-                              <button
-                                key={rec.id}
-                                onClick={() => handleFeedCooked(rec)}
-                                className="flex items-center justify-between p-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 border border-emerald-300 transition text-left active:scale-95"
-                              >
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="text-xl">{rec.emoji}</span>
-                                  <div className="min-w-0">
-                                    <div className="text-[11px] font-extrabold text-gray-800 truncate">{rec.name}</div>
-                                    <div className="text-[9px] text-emerald-700 font-bold">+{rec.hunger} Food</div>
-                                  </div>
-                                </div>
-                                <span className="text-[10px] font-black text-emerald-800 bg-white px-1.5 py-0.5 rounded-lg border border-emerald-200 shrink-0">
-                                  x{world.cookedInventory[rec.id]}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-1">
-                        <div className="text-[10px] font-black text-orange-700 px-1">🍓 Quick Snacks</div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {FOOD_MENU.map((food) => (
-                            <button
-                              key={food.id}
-                              onClick={() => handleFeedPet(food)}
-                              className="flex items-center justify-between p-2 rounded-2xl bg-white/75 hover:bg-white border border-orange-200/70 transition text-left active:scale-95"
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xl">{food.emoji}</span>
-                                <div>
-                                  <div className="text-[11px] font-extrabold text-gray-800">{food.name}</div>
-                                  <div className="text-[9px] text-orange-700 font-bold">+{food.hunger} Food</div>
-                                </div>
-                              </div>
-                              <span className="text-[10px] font-black text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-lg">
-                                {food.cost}🪙
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </>
                   )}
+
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-black text-orange-700 px-1">🍓 Quick Snacks</div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {FOOD_MENU.map((food) => (
+                        <button
+                          key={food.id}
+                          onClick={() => handleFeedPet(food)}
+                          className="flex items-center justify-between p-2 rounded-2xl bg-white/75 hover:bg-white border border-orange-200/70 transition text-left active:scale-95"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xl">{food.emoji}</span>
+                            <div>
+                              <div className="text-[11px] font-extrabold text-gray-800">{food.name}</div>
+                              <div className="text-[9px] text-orange-700 font-bold">+{food.hunger} Food</div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-black text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-lg">
+                            {food.cost}🪙
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* SECONDARY TABS */}
+        {/* SECONDARY TABS (PETS DETAIL, WARDROBE, GACHA, ARCADE, LEADERBOARD, DIARY) */}
         {activeTab !== 'home' && (
           <main className="relative z-20 flex-1 overflow-y-auto px-3.5 pt-2 pb-24">
             <div className="rounded-[30px] bg-[#FFFDF9]/95 backdrop-blur-xl border-2 border-[#E6D8C5] p-4 shadow-[0_8px_0_#E6D8C5] min-h-full space-y-4">
@@ -5388,6 +5489,7 @@ export default function App() {
                   onClick={() => {
                     setActiveTab('home');
                     setActiveMinigame(null);
+                    setRenamingPetId(null);
                   }}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] border border-[#E6D8C5] text-[#5C3D2E] text-xs font-extrabold transition active:scale-95"
                 >
@@ -5408,7 +5510,7 @@ export default function App() {
                         setActiveTab(t.id);
                         if (t.id !== 'arcade') setActiveMinigame(null);
                       }}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition border ${
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition border ${
                         activeTab === t.id
                           ? 'bg-[#3B2618] text-white border-[#3B2618] shadow-xs scale-105'
                           : 'bg-[#F7EFE4] border-[#E6D8C5] text-[#6E4D37]'
@@ -5420,6 +5522,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* PETS DETAIL & RENAME TAB */}
               {activeTab === 'pets' && (
                 <div className="space-y-3.5">
                   <div className="flex items-center justify-between">
@@ -5428,12 +5531,12 @@ export default function App() {
                         🐾 Our Pet Family ({allPetsList.length})
                       </h3>
                       <p className="text-[10.5px] font-semibold text-[#8C6D56]">
-                        View every pet&apos;s details, stats &amp; rename them here
+                        View full stats, outfits &amp; rename your pets
                       </p>
                     </div>
                     <button
                       onClick={() => setActiveTab('gacha')}
-                      className="px-3 py-1.5 rounded-full bg-[#D95D78] text-white text-[10.5px] font-extrabold active:scale-95 transition"
+                      className="px-3 py-1.5 rounded-full bg-[#D95D78] text-white text-[11px] font-extrabold shadow-xs active:scale-95 transition"
                     >
                       + Adopt
                     </button>
@@ -5444,34 +5547,23 @@ export default function App() {
                       const spec = getSpecies(pet.speciesId);
                       const pAgeMs = Math.max(60000, now - (pet.adoptedAt || now));
                       const pGrowth = getGrowthStage(pAgeMs);
-                      const eMins = Math.max(0, (now - (pet.lastUpdated || now)) / 60000);
-                      const isPrimary = pet.id === activePet.id;
-                      const pHunger = isPrimary ? liveStats.hunger : clamp(Math.round(pet.hunger - eMins * 0.45));
-                      const pJoy = isPrimary ? liveStats.happiness : clamp(Math.round(pet.happiness - eMins * 0.35));
-                      const pEnergy = isPrimary
-                        ? liveStats.energy
-                        : pet.isSleeping
-                        ? clamp(Math.round(pet.energy + eMins * 1.6))
-                        : clamp(Math.round(pet.energy - eMins * 0.4));
-                      const pHygiene = isPrimary ? liveStats.hygiene : clamp(Math.round(pet.hygiene - eMins * 0.3));
-                      const isRenamingThis = editingPetId === pet.id;
+                      const pStats = allPetsLiveStats[pet.id] || computeLiveStatsForPet(pet, now);
+                      const isRenamingThis = renamingPetId === pet.id;
 
                       return (
                         <div
                           key={pet.id}
-                          className={`rounded-[26px] p-3.5 bg-gradient-to-br ${spec.bg} border-2 ${spec.border} space-y-2.5 shadow-xs`}
+                          className="rounded-3xl p-3.5 bg-gradient-to-br from-[#FAF6F0] to-[#F5ECE0] border-2 border-[#E6D8C5] space-y-3"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="bg-white/85 rounded-2xl p-2 border border-white shrink-0">
+                            <div className="p-2 rounded-2xl bg-white border border-[#E6D8C5] shrink-0">
                               <AnimatedStickerPet
                                 speciesId={pet.speciesId}
                                 outfit={pet.outfit}
                                 isSleeping={pet.isSleeping}
-                                isHappy={!pet.isSleeping}
-                                size={74}
+                                size={72}
                               />
                             </div>
-
                             <div className="flex-1 min-w-0 space-y-1">
                               {isRenamingThis ? (
                                 <div className="flex items-center gap-1">
@@ -5479,96 +5571,71 @@ export default function App() {
                                     value={nameInput}
                                     onChange={(e) => setNameInput(e.target.value)}
                                     maxLength={16}
-                                    placeholder="New pet name..."
-                                    className="w-full min-w-0 px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#D95D78] text-[#3B2618] bg-white focus:outline-none"
+                                    className="w-28 px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#D95D78] text-[#3B2618] bg-white focus:outline-none"
                                     autoFocus
                                   />
                                   <button
                                     onClick={() => handleSavePetName(pet.id)}
-                                    className="p-1.5 rounded-xl bg-[#4D9E6A] text-white shrink-0"
-                                    title="Save name"
+                                    className="px-2 py-1 rounded-xl bg-[#4D9E6A] text-white text-[10px] font-black"
                                   >
-                                    <IconCheck className="w-3.5 h-3.5" />
+                                    ✓
                                   </button>
                                   <button
-                                    onClick={() => setEditingPetId(null)}
-                                    className="p-1.5 rounded-xl bg-white/90 text-[#5C3D2E] shrink-0"
-                                    title="Cancel"
+                                    onClick={() => setRenamingPetId(null)}
+                                    className="px-2 py-1 rounded-xl bg-[#EAE0D2] text-[#5C3D2E] text-[10px] font-black"
                                   >
-                                    <IconX className="w-3.5 h-3.5" />
+                                    ✕
                                   </button>
                                 </div>
                               ) : (
-                                <div className="flex items-center justify-between gap-1.5">
+                                <div className="flex items-center justify-between gap-1">
                                   <span className="serif-display text-base font-bold text-[#3B2618] truncate">
                                     {pet.name}
                                   </span>
                                   <button
                                     onClick={() => {
-                                      setEditingPetId(pet.id);
+                                      setRenamingPetId(pet.id);
                                       setNameInput(pet.name);
                                     }}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 hover:bg-white border border-[#E6D8C5] text-[#5C3D2E] text-[10px] font-extrabold shrink-0 active:scale-95 transition"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white hover:bg-[#FDECEF] border border-[#E6D8C5] text-[10px] font-extrabold text-[#5C3D2E] shrink-0 active:scale-95 transition"
                                   >
-                                    <IconEdit3 className="w-3 h-3" />
-                                    <span>Rename</span>
+                                    ✏️ Rename
                                   </button>
                                 </div>
                               )}
 
                               <div className="flex flex-wrap items-center gap-1">
-                                <span className="text-[10px] font-extrabold text-[#5C3D2E]">
-                                  {spec.speciesName}
-                                </span>
-                                <span
-                                  className={`text-[8.5px] font-black px-1.5 py-0.5 rounded-full border ${RARITY_STYLES[spec.rarity]}`}
-                                >
+                                <span className="text-[10px] font-bold text-[#7A5438]">{spec.speciesName}</span>
+                                <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full border ${RARITY_STYLES[spec.rarity]}`}>
                                   {spec.rarity}
                                 </span>
-                                <span className="text-[9.5px] font-black text-amber-700">
-                                  ★{pet.stars || 1}
-                                </span>
+                                <span className="text-[10px] font-extrabold text-[#C88A2E]">★{pet.stars || 1}</span>
                               </div>
 
-                              <div className="text-[9.5px] font-bold text-[#7A5438]">
-                                {pGrowth.stage} ({pGrowth.nextLabel}) · Age {formatAge(pAgeMs)}
+                              <div className="text-[10px] font-semibold text-[#8C6D56]">
+                                Stage: <span className="font-bold text-[#3B2618]">{pGrowth.stage}</span> ({formatAge(pAgeMs)}) • Adopted by{' '}
+                                <span className="font-bold">{pet.adoptedBy || 'Ronald & Ulfah'}</span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-4 gap-1.5 bg-white/80 rounded-2xl p-2 border border-white">
+                          <div className="grid grid-cols-4 gap-2 bg-white/80 p-2.5 rounded-2xl border border-[#E6D8C5]">
                             {[
-                              { label: 'Food', icon: '🍓', val: pHunger, color: 'bg-[#E68A47]' },
-                              { label: 'Joy', icon: '💖', val: pJoy, color: 'bg-[#DF6A84]' },
-                              { label: 'Energy', icon: '⚡', val: pEnergy, color: 'bg-[#DFB048]' },
-                              { label: 'Clean', icon: '🫧', val: pHygiene, color: 'bg-[#5BA4CF]' },
+                              { label: 'Food', icon: '🍓', val: pStats.hunger, color: 'bg-[#E68A47]' },
+                              { label: 'Joy', icon: '💖', val: pStats.happiness, color: 'bg-[#DF6A84]' },
+                              { label: 'Energy', icon: '⚡', val: pStats.energy, color: 'bg-[#DFB048]' },
+                              { label: 'Clean', icon: '🫧', val: pStats.hygiene, color: 'bg-[#5BA4CF]' },
                             ].map((st) => (
                               <div key={st.label} className="space-y-1">
-                                <div className="flex items-center justify-between text-[9px] font-extrabold text-[#5C3D2E]">
+                                <div className="flex items-center justify-between text-[9.5px] font-extrabold text-[#6E4D37]">
                                   <span>{st.icon}</span>
                                   <span>{st.val}%</span>
                                 </div>
                                 <div className="h-1.5 rounded-full bg-[#EFE6D8] overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full ${st.color}`}
-                                    style={{ width: `${st.val}%` }}
-                                  />
+                                  <div className={`h-full rounded-full ${st.color}`} style={{ width: `${st.val}%` }} />
                                 </div>
                               </div>
                             ))}
-                          </div>
-
-                          <div className="flex items-center justify-between text-[9.5px] font-bold text-[#6E4D37] px-1">
-                            <span>Adopted by {pet.adoptedBy || 'Ronald & Ulfah'}</span>
-                            <button
-                              onClick={() => {
-                                updateWorld((prev) => ({ ...prev, activePetId: pet.id }));
-                                setActiveTab('wardrobe');
-                              }}
-                              className="text-[#D95D78] font-extrabold hover:underline"
-                            >
-                              Dress Up →
-                            </button>
                           </div>
                         </div>
                       );
@@ -5579,18 +5646,36 @@ export default function App() {
 
               {activeTab === 'wardrobe' && (
                 <div className="space-y-3.5">
+                  {allPetsList.length > 1 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                      {allPetsList.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setWardrobePetId(p.id)}
+                          className={`px-3 py-1 rounded-full text-[11px] font-black border transition shrink-0 ${
+                            activeWardrobePet.id === p.id
+                              ? 'bg-[#D95D78] text-white border-[#D95D78]'
+                              : 'bg-white text-[#5C3D2E] border-[#E6D8C5]'
+                          }`}
+                        >
+                          🐾 {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="rounded-3xl p-3.5 bg-gradient-to-br from-pink-100 via-amber-50 to-sky-100 border-2 border-white shadow-xs flex items-center justify-between gap-3">
                     <div className="flex flex-col items-center justify-center bg-white/80 rounded-2xl p-2 border border-pink-200 shrink-0">
                       <AnimatedStickerPet
-                        speciesId={activePet.speciesId}
-                        outfit={activePet.outfit}
+                        speciesId={activeWardrobePet.speciesId}
+                        outfit={activeWardrobePet.outfit}
                         isHappy
                         size={88}
                       />
                     </div>
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-black text-amber-950 truncate">{activePet.name}&apos;s Closet</span>
+                        <span className="text-sm font-black text-amber-950 truncate">{activeWardrobePet.name}&apos;s Closet</span>
                         <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
                           🪙 {world.coins}
                         </span>
@@ -5600,7 +5685,7 @@ export default function App() {
                       </p>
                       <div className="flex flex-wrap gap-1 pt-0.5">
                         {(['hat', 'shirt', 'costume']).map((slot) => {
-                          const eqId = activePet.outfit?.[slot];
+                          const eqId = activeWardrobePet.outfit?.[slot];
                           const eqItem = OUTFIT_CATALOG.find((o) => o.id === eqId);
                           return (
                             <span
@@ -5617,9 +5702,9 @@ export default function App() {
 
                   <div className="grid grid-cols-3 gap-1.5 bg-amber-100/70 p-1 rounded-2xl border border-amber-200">
                     {[
-                      { id: 'hat', label: '🎩 Hats', count: OUTFIT_CATALOG.filter((o) => o.slot === 'hat').length },
-                      { id: 'shirt', label: '👕 Shirts', count: OUTFIT_CATALOG.filter((o) => o.slot === 'shirt').length },
-                      { id: 'costume', label: '🦁 Costumes', count: OUTFIT_CATALOG.filter((o) => o.slot === 'costume').length },
+                      { id: 'hat', label: '🎩 Hats' },
+                      { id: 'shirt', label: '👕 Shirts' },
+                      { id: 'costume', label: '🦁 Costumes' },
                     ].map((cat) => (
                       <button
                         key={cat.id}
@@ -5638,7 +5723,7 @@ export default function App() {
                   <div className="grid grid-cols-2 gap-2">
                     {OUTFIT_CATALOG.filter((item) => item.slot === wardrobeCategory).map((item) => {
                       const isOwned = (world.ownedOutfits || []).includes(item.id);
-                      const isEquipped = activePet.outfit?.[item.slot] === item.id;
+                      const isEquipped = activeWardrobePet.outfit?.[item.slot] === item.id;
                       const canAfford = world.coins >= item.cost;
 
                       return (
@@ -5717,44 +5802,11 @@ export default function App() {
 
                   <div className="space-y-2">
                     <h3 className="text-xs font-black text-gray-700 uppercase tracking-wide">
-                      Your Pet Family ({Object.keys(world.pets).length}/16)
-                    </h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.values(world.pets).map((pet) => {
-                        const spec = getSpecies(pet.speciesId);
-                        const isSelected = pet.id === activePet.id;
-                        return (
-                          <button
-                            key={pet.id}
-                            onClick={() => {
-                              updateWorld((prev) => ({ ...prev, activePetId: pet.id }));
-                              showToast(`${pet.name} is now active!`);
-                            }}
-                            className={`p-2.5 rounded-2xl border-2 flex items-center gap-2 text-left transition ${
-                              isSelected
-                                ? 'bg-rose-50 border-rose-400 shadow-xs'
-                                : 'bg-white/80 border-gray-100'
-                            }`}
-                          >
-                            <AnimatedStickerPet speciesId={pet.speciesId} size={46} />
-                            <div className="min-w-0">
-                              <div className="text-xs font-black text-gray-800 truncate">{pet.name}</div>
-                              <div className="text-[9px] font-bold text-gray-500 truncate">{spec.speciesName}</div>
-                              <div className="text-[9px] font-black text-amber-600">★{pet.stars || 1}</div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-black text-gray-700 uppercase tracking-wide">
-                      16-Pet Sticker Dex
+                      16-Pet Sticker Dex ({allPetsList.length}/16)
                     </h3>
                     <div className="grid grid-cols-4 gap-1.5">
                       {PET_SPECIES.map((spec) => {
-                        const owned = Object.values(world.pets).some((p) => p.speciesId === spec.id);
+                        const owned = allPetsList.some((p) => p.speciesId === spec.id);
                         return (
                           <div
                             key={spec.id}
@@ -5834,7 +5886,7 @@ export default function App() {
                     ].map((p) => (
                       <div key={p.name} className={`relative rounded-3xl p-3.5 bg-gradient-to-b ${p.bg} border-2 text-center space-y-1`}>
                         {p.leading && (
-                          <IconCrown className="w-5 h-5 text-amber-500 absolute -top-2.5 left-1/2 -translate-x-1/2" />
+                          <span className="text-lg absolute -top-3 left-1/2 -translate-x-1/2">👑</span>
                         )}
                         <div className="flex justify-center">
                           <CoupleAvatar player={p.name} size={52} />
@@ -5876,7 +5928,7 @@ export default function App() {
                       onClick={() => setShowResetModal(true)}
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 hover:bg-rose-100 text-gray-600 hover:text-rose-600 text-[10px] font-black transition"
                     >
-                      <IconRotateCcw className="w-3 h-3" /> Reset
+                      ↺ Reset
                     </button>
                   </div>
                   <div className="space-y-2">
@@ -5900,9 +5952,9 @@ export default function App() {
           </main>
         )}
 
-        {/* BOTTOM KAWAII STICKER ROOM DOCK */}
-        <nav className="absolute bottom-3 inset-x-3.5 z-30 flex items-end justify-between gap-2">
-          <div className="flex-1 grid grid-cols-4 items-end px-2 py-1.5 rounded-full bg-[#FFFDF9]/92 backdrop-blur-md border-2 border-[#E6D8C5] shadow-[0_4px_0_#E6D8C5]">
+        {/* BOTTOM KAWAII STICKER ROOM DOCK (CENTERED IN THE MIDDLE) */}
+        <nav className="absolute bottom-3 inset-x-3.5 z-30 flex items-center justify-between gap-2">
+          <div className="flex-1 h-[60px] grid grid-cols-4 items-center px-2 rounded-full bg-[#FFFDF9]/92 backdrop-blur-md border-2 border-[#E6D8C5] shadow-[0_4px_0_#E6D8C5]">
             {ROOMS.slice(0, 4).map((room) => {
               const isSelected = activeTab === 'home' && currentRoom === room.id;
               return (
@@ -5912,11 +5964,11 @@ export default function App() {
                     setActiveTab('home');
                     handleSwitchRoom(room.id);
                   }}
-                  className="relative flex flex-col items-center justify-end active:scale-90 transition"
+                  className="h-full flex flex-col items-center justify-center active:scale-90 transition"
                 >
                   <RoomDockIcon roomId={room.id} active={isSelected} />
                   {isSelected && (
-                    <span className="text-[9.5px] font-extrabold text-[#3B2618] leading-none -mt-1 px-1.5 py-0.5 rounded-full bg-[#F5ECE0]">
+                    <span className="text-[9px] font-extrabold text-[#3B2618] leading-none -mt-0.5 px-1.5 py-0.5 rounded-full bg-[#F5ECE0]">
                       {room.shortLabel}
                     </span>
                   )}
@@ -5937,48 +5989,45 @@ export default function App() {
             }`}
           >
             <RoomDockIcon roomId="park" active={activeTab === 'home' && currentRoom === 'park'} />
-            <span className="text-[8.5px] font-extrabold text-[#3B2618] leading-none -mt-1.5">
-              Pet Park
-            </span>
+            {activeTab === 'home' && currentRoom === 'park' && (
+              <span className="text-[8.5px] font-extrabold text-[#3B2618] leading-none -mt-0.5 px-1.5 py-0.5 rounded-full bg-[#F5ECE0]">
+                Park
+              </span>
+            )}
           </button>
         </nav>
 
         {/* CHOOSE PET FOR BATH MODAL */}
-        {showBathSelectModal && (
+        {showBathTargetPicker && (
           <div className="absolute inset-0 z-50 bg-sky-950/45 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="w-full max-w-[340px] rounded-[30px] bg-white/95 backdrop-blur-xl border-2 border-white shadow-2xl p-4 space-y-3">
+            <div className="w-full max-w-[330px] rounded-[30px] bg-white/95 backdrop-blur-xl border-2 border-white shadow-2xl p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black text-sky-900">🫧 Who needs a bath?</h3>
+                <h3 className="text-sm font-black text-sky-900">🫧 Who needs a bubble bath?</h3>
                 <button
-                  onClick={() => setShowBathSelectModal(false)}
-                  className="p-1.5 rounded-full bg-gray-100 text-gray-500"
+                  onClick={() => setShowBathTargetPicker(false)}
+                  className="p-1.5 rounded-full bg-gray-100 text-gray-500 text-xs font-black"
                 >
-                  <IconX className="w-4 h-4" />
+                  ✕
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {allPetsList.map((pet) => {
-                  const stats = getPetLiveStats(pet);
-                  const isClean = stats.hygiene >= 100;
-                  const isAsleep = pet.isSleeping;
-                  const disabled = isClean || isAsleep;
+                  const pHygiene = allPetsLiveStats[pet.id]?.hygiene ?? pet.hygiene;
+                  const isClean = pHygiene >= 100;
                   return (
                     <button
                       key={pet.id}
-                      disabled={disabled}
                       onClick={() => handleStartBathForPet(pet)}
-                      className={`p-2.5 rounded-2xl border-2 flex items-center gap-2 text-left transition ${
-                        disabled
-                          ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
-                          : 'bg-sky-50 hover:bg-sky-100 border-sky-300 active:scale-95'
+                      className={`p-3 rounded-2xl border-2 flex flex-col items-center gap-1 text-center transition active:scale-95 ${
+                        isClean
+                          ? 'bg-gray-100 border-gray-200 opacity-60'
+                          : 'bg-sky-50 hover:bg-sky-100 border-sky-300'
                       }`}
                     >
-                      <AnimatedStickerPet speciesId={pet.speciesId} outfit={pet.outfit} size={46} />
-                      <div className="min-w-0">
-                        <div className="text-xs font-black text-gray-800 truncate">{pet.name}</div>
-                        <div className="text-[10px] font-extrabold text-sky-700">
-                          {isAsleep ? '💤 Sleeping' : isClean ? '✨ 100% Clean' : `🫧 ${stats.hygiene}%`}
-                        </div>
+                      <AnimatedStickerPet speciesId={pet.speciesId} outfit={pet.outfit} size={56} />
+                      <div className="text-xs font-black text-gray-800 truncate w-full">{pet.name}</div>
+                      <div className={`text-[10px] font-bold ${isClean ? 'text-emerald-600' : 'text-sky-700'}`}>
+                        {isClean ? '100% Clean ✨' : `🫧 ${pHygiene}%`}
                       </div>
                     </button>
                   );
@@ -5991,24 +6040,112 @@ export default function App() {
         {/* INTERACTIVE BATH MINIGAME MODAL */}
         {showBathGame && (
           <BathMinigameModal
-            pet={(bathingPetId && world.pets?.[bathingPetId]) || activePet}
-            muted={effectiveMuted}
+            pet={targetBathPet}
+            muted={muted}
             onComplete={handleCompleteBath}
-            onClose={() => {
-              setShowBathGame(false);
-              setBathingPetId(null);
-            }}
+            onClose={() => setShowBathGame(false)}
           />
         )}
 
-        {/* INTERACTIVE STOVE COOKING MODAL */}
+        {/* INTERACTIVE STOVE COOKING MODAL (USES FIREPLACE.MP3 FOR SIZZLING) */}
         {showCookModal && (
           <CookingMinigameModal
             coins={world.coins}
             muted={muted}
+            fireplaceAudioRef={fireplaceAudioRef}
             onCompleteCook={handleCompleteCook}
             onClose={() => setShowCookModal(false)}
           />
+        )}
+
+        {/* RONALD'S SECRET MAIL COMPOSER MODAL */}
+        {isRonald && showSecretMailComposer && (
+          <div className="absolute inset-0 z-50 bg-[#3B2618]/45 backdrop-blur-xs flex items-center justify-center p-5">
+            <div className="w-full max-w-[330px] rounded-[30px] bg-[#FFFDF9] border-2 border-[#E6D8C5] p-5 space-y-3.5 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">💌</span>
+                  <div>
+                    <h3 className="serif-display text-base font-bold text-[#3B2618]">
+                      Secret Letter for Ulfah
+                    </h3>
+                    <p className="text-[10px] font-semibold text-[#8C6D56]">
+                      Appears as a gift package in her Living Room (view once!)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSecretMailComposer(false)}
+                  className="p-1.5 rounded-full bg-[#F5ECE0] text-[#6E4D37] text-xs font-black"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {world.secretMailForUlfah && (
+                <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
+                  🎁 Ulfah still has an unopened package waiting—sending a new one will replace it.
+                </div>
+              )}
+
+              <form onSubmit={handleSendSecretMail} className="space-y-3">
+                <textarea
+                  value={secretMailInput}
+                  onChange={(e) => setSecretMailInput(e.target.value)}
+                  placeholder="Write a sweet secret note for Ulfah..."
+                  rows={4}
+                  maxLength={320}
+                  className="w-full p-3 rounded-2xl bg-[#FAF6F0] border-2 border-[#E6D8C5] text-xs font-semibold text-[#3B2618] placeholder-[#A38873] focus:outline-none focus:border-[#D95D78] resize-none"
+                  autoFocus
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-[#A38873]">
+                    {secretMailInput.length}/320
+                  </span>
+                  <button
+                    type="submit"
+                    disabled={!secretMailInput.trim()}
+                    className="px-4 py-2 rounded-full bg-[#D95D78] text-white text-xs font-extrabold shadow-md active:scale-95 transition disabled:opacity-50"
+                  >
+                    Send Secret Mail 🎁
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ULFAH'S VIEW-ONCE SECRET LETTER MODAL */}
+        {!isRonald && openedSecretMail && (
+          <div className="absolute inset-0 z-50 bg-[#3B2618]/55 backdrop-blur-sm flex items-center justify-center p-5">
+            <div className="w-full max-w-[330px] rounded-[30px] bg-[#FFFDF9] border-2 border-[#ECC5CE] p-5 space-y-4 shadow-2xl text-center">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FDF3F5] border border-[#ECC5CE] text-[10px] font-extrabold text-[#D95D78]">
+                <span>💌 Secret Letter from Ronald</span>
+                <span>•</span>
+                <span>View Once</span>
+              </div>
+
+              <div className="rounded-2xl bg-[#FAF6F0] border border-[#E6D8C5] p-4 text-left space-y-2">
+                <p className="text-xs font-semibold text-[#3B2618] whitespace-pre-wrap leading-relaxed">
+                  {openedSecretMail.text}
+                </p>
+                <p className="text-[9.5px] font-bold text-[#A38873] text-right pt-1">
+                  — Love, Ronald ❤️
+                </p>
+              </div>
+
+              <p className="text-[10px] font-semibold text-[#8C6D56]">
+                Once you close this letter, it will disappear forever ✨
+              </p>
+
+              <button
+                onClick={handleCloseOpenedSecretMail}
+                className="w-full py-2.5 rounded-2xl bg-[#D95D78] text-white text-xs font-extrabold shadow-md active:scale-95 transition"
+              >
+                Close Letter 🤍
+              </button>
+            </div>
+          </div>
         )}
 
         {/* CUSTOM SAFE RESET CONFIRMATION MODAL */}
