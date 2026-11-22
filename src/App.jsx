@@ -1,40 +1,103 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
-import {
-  Heart,
-  Utensils,
-  Moon,
-  Sun,
-  Sparkles,
-  Trophy,
-  Gamepad2,
-  BookOpen,
-  Gift,
-  Volume2,
-  VolumeX,
-  Edit3,
-  Check,
-  X,
-  Send,
-  Star,
-  RotateCcw,
-  Smile,
-  Zap,
-  Droplets,
-  Sofa,
-  Bath,
-  BedDouble,
-  Trees,
-  Crown,
-  Flame,
-  Music,
-  Play,
-  Pause,
-  SkipForward,
-  Square,
-  Clock,
-} from 'lucide-react';
+
+// Compatibility bridge for React 19 jsx-runtime inside React 18 preview sandboxes
+const REACT_18_ELEMENT_SYMBOL = Symbol.for('react.element');
+const origSymbolFor = Symbol.for;
+if (typeof Symbol !== 'undefined' && origSymbolFor('react.transitional.element') !== REACT_18_ELEMENT_SYMBOL) {
+  Symbol.for = function (key) {
+    if (key === 'react.transitional.element') return REACT_18_ELEMENT_SYMBOL;
+    return origSymbolFor.call(Symbol, key);
+  };
+}
+
+// Lightweight inline UI icons (prevents React 18 vs 19 $$typeof symbol mismatch in preview)
+const IconTrophy = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+  </svg>
+);
+const IconBookOpen = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
+const IconVolume2 = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+  </svg>
+);
+const IconVolumeX = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+  </svg>
+);
+const IconMessageCircle = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+  </svg>
+);
+const IconX = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+const IconSend = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+);
+const IconMusic = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+  </svg>
+);
+const IconPlay = ({ className = 'w-3 h-3' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);
+const IconPause = ({ className = 'w-3 h-3' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+  </svg>
+);
+const IconSkipForward = ({ className = 'w-3 h-3' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="5 4 15 12 5 20 5 4" /><line x1="19" y1="5" x2="19" y2="19" />
+  </svg>
+);
+const IconSquare = ({ className = 'w-3 h-3' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="5" y="5" width="14" height="14" rx="2" />
+  </svg>
+);
+const IconHeart = ({ className = 'w-3 h-3' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+  </svg>
+);
+const IconEdit3 = ({ className = 'w-3 h-3' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+);
+const IconCheck = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+const IconCrown = ({ className = 'w-5 h-5' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+  </svg>
+);
+const IconRotateCcw = ({ className = 'w-3 h-3' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+  </svg>
+);
 
 // ============================================================================
 // REAL-TIME JAKARTA (WIB / Asia/Jakarta) CLOCK & SKY LIGHTING HELPER
@@ -374,6 +437,10 @@ const PET_ANIMATION_CSS = `
   .fire-spark-1 { animation: fireSpark 1.6s ease-out infinite; }
   .fire-spark-2 { animation: fireSpark 2.0s ease-out infinite 0.55s; }
   .fire-spark-3 { animation: fireSpark 1.4s ease-out infinite 1.1s; }
+  .app-minimized *, .app-minimized *::before, .app-minimized *::after {
+    animation-play-state: paused !important;
+    transition: none !important;
+  }
 `;
 
 const PET_SPECIES = [
@@ -478,6 +545,7 @@ const createInitialWorld = () => {
         timestamp: adoptedAt,
       },
     ],
+    chatMessages: [],
     scores: [],
   };
 };
@@ -485,7 +553,7 @@ const createInitialWorld = () => {
 // Web Audio Cozy SFX Engine
 let sharedAudioCtx = null;
 function playSfx(type, muted = false) {
-  if (muted || typeof window === 'undefined') return;
+  if (muted || typeof window === 'undefined' || (typeof document !== 'undefined' && document.hidden)) return;
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
@@ -571,6 +639,18 @@ function playSfx(type, muted = false) {
         break;
       case 'sizzle':
       case 'panSizzle': {
+        if (typeof Audio !== 'undefined') {
+          try {
+            const fpSizzle = new Audio('/music/fireplace.mp3');
+            fpSizzle.volume = 0.65;
+            fpSizzle.play().catch(() => {});
+            setTimeout(() => {
+              fpSizzle.pause();
+            }, 600);
+          } catch {
+            // Ignore audio playback errors
+          }
+        }
         noiseBurst(0.55, 0.065, 3400);
         noiseBurst(0.45, 0.04, 6200);
         const popCount = 3 + Math.floor(Math.random() * 3);
@@ -584,6 +664,18 @@ function playSfx(type, muted = false) {
         tone(260, 0.14, 'sine', 0.07, 0, 680);
         setTimeout(() => {
           if (!muted) {
+            if (typeof Audio !== 'undefined') {
+              try {
+                const fpFlip = new Audio('/music/fireplace.mp3');
+                fpFlip.volume = 0.75;
+                fpFlip.play().catch(() => {});
+                setTimeout(() => {
+                  fpFlip.pause();
+                }, 520);
+              } catch {
+                // Ignore audio playback errors
+              }
+            }
             noiseBurst(0.45, 0.08, 4200);
             tone(1900, 0.03, 'sine', 0.035, 0.05, 1100);
           }
@@ -2465,7 +2557,7 @@ function BathMinigameModal({ pet, onComplete, onClose, muted }) {
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 text-gray-500">
-            <X className="w-4 h-4" />
+            <IconX className="w-4 h-4" />
           </button>
         </div>
 
@@ -2716,7 +2808,7 @@ function CookingMinigameModal({ coins, onCompleteCook, onClose, muted }) {
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 text-gray-500">
-            <X className="w-4 h-4" />
+            <IconX className="w-4 h-4" />
           </button>
         </div>
 
@@ -2963,12 +3055,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [currentRoom, setCurrentRoom] = useState('living');
   const [muted, setMuted] = useState(false);
+  const [isAppMinimized, setIsAppMinimized] = useState(
+    () => typeof document !== 'undefined' && document.hidden
+  );
   const [toast, setToast] = useState(null);
 
-  // Room & Pet Movement State
+  // Room & Pet Movement State (All pets active & moving independently!)
   const [petPos, setPetPos] = useState({ x: 50, y: 66 });
   const [petFacing, setPetFacing] = useState(1);
   const [isWalking, setIsWalking] = useState(false);
+  const [companionPositions, setCompanionPositions] = useState({});
   const [isEating, setIsEating] = useState(false);
   const [isHappy, setIsHappy] = useState(false);
   const [isSittingAtTable, setIsSittingAtTable] = useState(false);
@@ -2977,12 +3073,21 @@ export default function App() {
   const [droppedItem, setDroppedItem] = useState(null);
   const [floatingHearts, setFloatingHearts] = useState([]);
 
+  // Simple Floating Couple Chat State
+  const [showChat, setShowChat] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [lastSeenChatCount, setLastSeenChatCount] = useState(0);
+  const chatEndRef = useRef(null);
+
   // UI Overlays & Modals
   const [showFoodDrawer, setShowFoodDrawer] = useState(false);
+  const [feedingPetId, setFeedingPetId] = useState(null);
   const [showBathGame, setShowBathGame] = useState(false);
+  const [bathingPetId, setBathingPetId] = useState(null);
+  const [showBathSelectModal, setShowBathSelectModal] = useState(false);
   const [showCookModal, setShowCookModal] = useState(false);
   const [wardrobeCategory, setWardrobeCategory] = useState('hat');
-  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingPetId, setEditingPetId] = useState(null);
   const [nameInput, setNameInput] = useState('');
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteInput, setNoteInput] = useState('');
@@ -3001,6 +3106,7 @@ export default function App() {
   const audioRef = useRef(null);
   const fireplaceAudioRef = useRef(null);
   const musicIdleTimerRef = useRef(null);
+  const wasPlayingBeforeMinimizeRef = useRef(false);
 
   // Auto-minimizing Pet Status Card (minimizes after 5s idle, expands when clicking pet)
   const [statusExpanded, setStatusExpanded] = useState(true);
@@ -3029,6 +3135,58 @@ export default function App() {
     setStatusExpanded(true);
     resetStatusIdleTimer();
   }, [resetStatusIdleTimer]);
+
+  // Auto-mute all audio & hibernate timers/animations when app is minimized
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const hidden = document.hidden;
+      setIsAppMinimized(hidden);
+
+      if (hidden) {
+        if (audioRef.current && !audioRef.current.paused) {
+          wasPlayingBeforeMinimizeRef.current = true;
+          audioRef.current.pause();
+          setIsPlayingMusic(false);
+        }
+        if (fireplaceAudioRef.current) {
+          fireplaceAudioRef.current.pause();
+        }
+        if (sharedAudioCtx && sharedAudioCtx.state === 'running') {
+          sharedAudioCtx.suspend().catch(() => {});
+        }
+      } else {
+        setNow(Date.now());
+        if (sharedAudioCtx && sharedAudioCtx.state === 'suspended' && !muted) {
+          sharedAudioCtx.resume().catch(() => {});
+        }
+        if (wasPlayingBeforeMinimizeRef.current && audioRef.current && !muted) {
+          wasPlayingBeforeMinimizeRef.current = false;
+          audioRef.current
+            .play()
+            .then(() => setIsPlayingMusic(true))
+            .catch(() => {});
+        }
+      }
+    };
+
+    const handlePageHide = () => {
+      setIsAppMinimized(true);
+      if (audioRef.current) audioRef.current.pause();
+      if (fireplaceAudioRef.current) fireplaceAudioRef.current.pause();
+      if (sharedAudioCtx && sharedAudioCtx.state === 'running') {
+        sharedAudioCtx.suspend().catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [muted]);
+
+  const effectiveMuted = muted || isAppMinimized;
 
   // Start 5s auto-minimize timer once signed in on Home tab
   useEffect(() => {
@@ -3193,7 +3351,9 @@ export default function App() {
   // Cozy fireplace audio (/music/fireplace.mp3 with synth crackle fallback) in Living Room
   useEffect(() => {
     const fpAudio = fireplaceAudioRef.current;
-    const shouldPlay = Boolean(currentUser && activeTab === 'home' && currentRoom === 'living' && !muted);
+    const shouldPlay = Boolean(
+      currentUser && activeTab === 'home' && currentRoom === 'living' && !effectiveMuted
+    );
 
     if (!shouldPlay) {
       if (fpAudio) {
@@ -3224,7 +3384,7 @@ export default function App() {
       if (fpAudio) fpAudio.pause();
       if (fallbackInterval) clearInterval(fallbackInterval);
     };
-  }, [currentUser, activeTab, currentRoom, muted]);
+  }, [currentUser, activeTab, currentRoom, effectiveMuted]);
 
   const updateWorld = useCallback((updater) => {
     setWorld((prev) => {
@@ -3259,19 +3419,41 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // Real-time aging, Jakarta clock & stat tick
+  // Real-time aging, Jakarta clock & stat tick (pauses while minimized to save battery)
   useEffect(() => {
+    if (isAppMinimized) return;
     const id = setInterval(() => setNow(Date.now()), 2000);
     return () => clearInterval(id);
-  }, []);
+  }, [isAppMinimized]);
 
   const activePet = useMemo(() => {
     return world.pets[world.activePetId] || Object.values(world.pets)[0];
   }, [world]);
 
+  const allPetsList = useMemo(() => {
+    return Object.values(world.pets || {});
+  }, [world.pets]);
+
+  const getPetLiveStats = useCallback(
+    (pet) => {
+      if (!pet) return { hunger: 80, happiness: 80, energy: 80, hygiene: 80, potty: 0 };
+      const elapsedMins = Math.max(0, (now - (pet.lastUpdated || now)) / 60000);
+      return {
+        hunger: clamp(Math.round(pet.hunger - elapsedMins * 0.45)),
+        happiness: clamp(Math.round(pet.happiness - elapsedMins * 0.35)),
+        hygiene: clamp(Math.round(pet.hygiene - elapsedMins * 0.3)),
+        energy: pet.isSleeping
+          ? clamp(Math.round(pet.energy + elapsedMins * 1.6))
+          : clamp(Math.round(pet.energy - elapsedMins * 0.4)),
+        potty: clamp(Math.round((pet.potty ?? 0) + elapsedMins * 0.4)),
+      };
+    },
+    [now]
+  );
+
   const companionPets = useMemo(() => {
-    return Object.values(world.pets || {}).filter((p) => p.id !== activePet.id);
-  }, [world.pets, activePet.id]);
+    return allPetsList.filter((p) => p.id !== activePet.id);
+  }, [allPetsList, activePet.id]);
 
   const ageMs = Math.max(60000, now - (activePet.adoptedAt || now));
   const growthInfo = useMemo(() => getGrowthStage(ageMs), [ageMs]);
@@ -3354,7 +3536,7 @@ export default function App() {
 
   // Commit pet updates + activity log + cute couple care notification
   const commitPetUpdate = useCallback(
-    (mutatePet, coinDelta = 0, logText = null, emoji = '✨', applyToAll = false, careNotif = null) => {
+    (mutatePet, coinDelta = 0, logText = null, emoji = '✨', targetPetIds = null, careNotif = null) => {
       const careEventObj = careNotif
         ? {
             id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -3371,7 +3553,12 @@ export default function App() {
 
       updateWorld((prev) => {
         const nextPets = { ...prev.pets };
-        const targetIds = applyToAll ? Object.keys(prev.pets) : [prev.activePetId];
+        const targetIds =
+          targetPetIds === true
+            ? Object.keys(prev.pets)
+            : Array.isArray(targetPetIds)
+            ? targetPetIds
+            : [prev.activePetId];
 
         targetIds.forEach((pid) => {
           const pet = prev.pets[pid];
@@ -3510,25 +3697,105 @@ export default function App() {
     });
   }, [currentUser, activePet.isSleeping, activePet.name, liveStats.hunger, liveStats.energy, liveStats.hygiene, liveStats.happiness, muted, movePetTo]);
 
-  // Autonomous room wandering when awake on Home tab
+  // Autonomous room wandering for ALL active pets when awake (pauses while minimized)
   useEffect(() => {
-    if (!currentUser || activeTab !== 'home' || activePet.isSleeping || droppedItem || isPetOnBed || isPooping || isSittingAtTable) return;
+    if (
+      isAppMinimized ||
+      !currentUser ||
+      activeTab !== 'home' ||
+      activePet.isSleeping ||
+      droppedItem ||
+      isPetOnBed ||
+      isPooping ||
+      isSittingAtTable
+    ) {
+      return;
+    }
     const wander = setInterval(() => {
       const nx = 20 + Math.random() * 54;
       const ny = 56 + Math.random() * 20;
       movePetTo(nx, ny, 1000);
+
+      companionPets.forEach((buddy) => {
+        const bx = 18 + Math.random() * 62;
+        const by = 54 + Math.random() * 22;
+        setCompanionPositions((prev) => {
+          const prevPos = prev[buddy.id] || { x: 74, y: 60, facing: 1, walking: false };
+          return {
+            ...prev,
+            [buddy.id]: {
+              x: bx,
+              y: by,
+              facing: Math.abs(bx - prevPos.x) > 1.5 ? (bx >= prevPos.x ? 1 : -1) : prevPos.facing,
+              walking: true,
+            },
+          };
+        });
+        setTimeout(() => {
+          setCompanionPositions((prev) => ({
+            ...prev,
+            [buddy.id]: { ...(prev[buddy.id] || { x: bx, y: by, facing: 1 }), walking: false },
+          }));
+        }, 1000);
+      });
     }, 4500);
     return () => clearInterval(wander);
-  }, [currentUser, activeTab, activePet.isSleeping, droppedItem, isPetOnBed, isPooping, isSittingAtTable, movePetTo]);
+  }, [
+    isAppMinimized,
+    currentUser,
+    activeTab,
+    activePet.isSleeping,
+    droppedItem,
+    isPetOnBed,
+    isPooping,
+    isSittingAtTable,
+    movePetTo,
+    companionPets,
+  ]);
 
   // Helper to close food drawer & return pets from dining chairs to normal floor
   const handleCloseFoodDrawer = useCallback(() => {
     setShowFoodDrawer(false);
+    setFeedingPetId(null);
     if (isSittingAtTable) {
       setIsSittingAtTable(false);
       movePetTo(48, 68, 750);
     }
   }, [isSittingAtTable, movePetTo]);
+
+  const handleSelectPetToFeed = useCallback(
+    (pet) => {
+      if (pet.isSleeping) {
+        showToast(`Wake ${pet.name} up before mealtime!`);
+        return;
+      }
+      const stats = getPetLiveStats(pet);
+      if (stats.hunger >= 100) {
+        showToast(`${pet.name} is already 100% full! 🍓`);
+        return;
+      }
+      playSfx('cuddle', effectiveMuted);
+      setFeedingPetId(pet.id);
+      setIsSittingAtTable(true);
+      setIsPetOnBed(false);
+      if (pet.id === activePet.id) {
+        movePetTo(22, 54, 700);
+        setTimeout(() => setPetFacing(1), 650);
+      } else {
+        setCompanionPositions((prev) => ({
+          ...prev,
+          [pet.id]: { x: 78, y: 54, facing: -1, walking: true },
+        }));
+        setTimeout(() => {
+          setCompanionPositions((prev) => ({
+            ...prev,
+            [pet.id]: { ...(prev[pet.id] || { x: 78, y: 54, facing: -1 }), walking: false },
+          }));
+        }, 700);
+      }
+    },
+    [activePet.id, effectiveMuted, getPetLiveStats, movePetTo, showToast]
+  );
 
   // Interactions
   const handleStageTap = (e) => {
@@ -3544,44 +3811,66 @@ export default function App() {
     movePetTo(x, y, 850);
   };
 
-  const handleCuddlePet = (e) => {
+  const handleCuddlePet = (e, targetPet = activePet, customPos = null) => {
     e.stopPropagation();
     expandStatusCard();
-    if (activePet.isSleeping) {
-      const wakeStr = activePet.wakeAt ? ` (wakes ~${formatWakeTimeWIB(activePet.wakeAt)} WIB)` : '';
-      showToast(`${activePet.name} is dreaming sweetly... 💤${wakeStr}`);
+    if (targetPet.isSleeping) {
+      const wakeStr = targetPet.wakeAt ? ` (wakes ~${formatWakeTimeWIB(targetPet.wakeAt)} WIB)` : '';
+      showToast(`${targetPet.name} is dreaming sweetly... 💤${wakeStr}`);
       return;
     }
-    playSfx('cuddle', muted);
+    playSfx('cuddle', effectiveMuted);
     setIsHappy(true);
     setTimeout(() => setIsHappy(false), 950);
+    const heartPos = customPos || petPos;
     const id = Date.now() + Math.random();
-    setFloatingHearts((prev) => [...prev.slice(-4), { id, x: petPos.x, y: petPos.y - 10 }]);
+    setFloatingHearts((prev) => [...prev.slice(-4), { id, x: heartPos.x, y: heartPos.y - 10 }]);
     setTimeout(() => setFloatingHearts((prev) => prev.filter((h) => h.id !== id)), 1100);
+    const targetStats = getPetLiveStats(targetPet);
     commitPetUpdate(
-      () => ({ happiness: clamp(liveStats.happiness + 8) }),
+      () => ({
+        hunger: targetStats.hunger,
+        happiness: clamp(targetStats.happiness + 8),
+        energy: targetStats.energy,
+        hygiene: targetStats.hygiene,
+        potty: targetStats.potty,
+      }),
       0,
-      `gave ${activePet.name} warm cuddles!`,
-      '💖'
+      `gave ${targetPet.name} warm cuddles!`,
+      '💖',
+      [targetPet.id]
     );
   };
 
   const handleFeedPet = (food) => {
-    if (activePet.isSleeping) {
-      showToast(`Wake your pets up before feeding!`);
+    const targetPet = (feedingPetId && world.pets?.[feedingPetId]) || activePet;
+    if (targetPet.isSleeping) {
+      showToast(`Wake ${targetPet.name} up before feeding!`);
+      return;
+    }
+    const targetStats = getPetLiveStats(targetPet);
+    if (targetStats.hunger >= 100) {
+      showToast(`${targetPet.name} is already 100% full! 🍓`);
       return;
     }
     if (world.coins < food.cost) {
       showToast('Not enough coins! Play in Games to earn more.');
       return;
     }
-    const petCount = Object.keys(world.pets).length;
-    playSfx('eat', muted);
+    playSfx('eat', effectiveMuted);
     setShowFoodDrawer(false);
     setCurrentRoom('dining');
     setIsSittingAtTable(true);
-    movePetTo(22, 54, 550);
-    setPetFacing(1);
+    const isPrimary = targetPet.id === activePet.id;
+    if (isPrimary) {
+      movePetTo(22, 54, 550);
+      setPetFacing(1);
+    } else {
+      setCompanionPositions((prev) => ({
+        ...prev,
+        [targetPet.id]: { x: 78, y: 54, facing: -1, walking: false },
+      }));
+    }
     setDroppedItem({ emoji: food.emoji, x: 50, y: 54 });
 
     setTimeout(() => {
@@ -3593,50 +3882,68 @@ export default function App() {
         setTimeout(() => {
           setIsHappy(false);
           setIsSittingAtTable(false);
-          movePetTo(48, 68, 750);
+          setFeedingPetId(null);
+          if (isPrimary) {
+            movePetTo(48, 68, 750);
+          } else {
+            setCompanionPositions((prev) => ({
+              ...prev,
+              [targetPet.id]: { x: 72, y: 64, facing: -1, walking: false },
+            }));
+          }
         }, 700);
       }, 1100);
     }, 520);
 
     const cuteFeedNotif = {
       title: `${food.emoji} Yummy Snack Time!`,
-      body:
-        petCount > 1
-          ? `${currentUser} fed all the babies ${food.name}! Nom nom nom~ 💕`
-          : `${currentUser} fed ${activePet.name} a yummy ${food.name}! Nom nom~ 💕`,
+      body: `${currentUser} fed ${targetPet.name} a yummy ${food.name}! Nom nom~ 💕`,
     };
 
     commitPetUpdate(
-      (p) => ({
-        hunger: clamp(p.hunger + food.hunger),
-        happiness: clamp(p.happiness + food.happiness),
-        potty: clamp((p.potty ?? 0) + 28),
+      () => ({
+        hunger: clamp(targetStats.hunger + food.hunger),
+        happiness: clamp(targetStats.happiness + food.happiness),
+        energy: targetStats.energy,
+        hygiene: targetStats.hygiene,
+        potty: clamp(targetStats.potty + 28),
       }),
       -food.cost,
-      petCount > 1
-        ? `fed all pets ${food.name} ${food.emoji} at the dining table!`
-        : `fed ${activePet.name} ${food.name} ${food.emoji}`,
+      `fed ${targetPet.name} ${food.name} ${food.emoji} at the dining table!`,
       food.emoji,
-      true,
+      [targetPet.id],
       cuteFeedNotif
     );
   };
 
   const handleFeedCooked = (recipe) => {
-    if (activePet.isSleeping) {
-      showToast(`Wake your pets up before feeding!`);
+    const targetPet = (feedingPetId && world.pets?.[feedingPetId]) || activePet;
+    if (targetPet.isSleeping) {
+      showToast(`Wake ${targetPet.name} up before feeding!`);
+      return;
+    }
+    const targetStats = getPetLiveStats(targetPet);
+    if (targetStats.hunger >= 100) {
+      showToast(`${targetPet.name} is already 100% full! 🍓`);
       return;
     }
     const count = world.cookedInventory?.[recipe.id] || 0;
     if (count <= 0) return;
 
-    const petCount = Object.keys(world.pets).length;
-    playSfx('eat', muted);
+    playSfx('eat', effectiveMuted);
     setShowFoodDrawer(false);
     setCurrentRoom('dining');
     setIsSittingAtTable(true);
-    movePetTo(22, 54, 550);
-    setPetFacing(1);
+    const isPrimary = targetPet.id === activePet.id;
+    if (isPrimary) {
+      movePetTo(22, 54, 550);
+      setPetFacing(1);
+    } else {
+      setCompanionPositions((prev) => ({
+        ...prev,
+        [targetPet.id]: { x: 78, y: 54, facing: -1, walking: false },
+      }));
+    }
     setDroppedItem({ emoji: recipe.emoji, x: 50, y: 54 });
 
     setTimeout(() => {
@@ -3648,7 +3955,15 @@ export default function App() {
         setTimeout(() => {
           setIsHappy(false);
           setIsSittingAtTable(false);
-          movePetTo(48, 68, 750);
+          setFeedingPetId(null);
+          if (isPrimary) {
+            movePetTo(48, 68, 750);
+          } else {
+            setCompanionPositions((prev) => ({
+              ...prev,
+              [targetPet.id]: { x: 72, y: 64, facing: -1, walking: false },
+            }));
+          }
         }, 700);
       }, 1100);
     }, 520);
@@ -3657,47 +3972,34 @@ export default function App() {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       actor: currentUser,
       title: `👨‍🍳 Chef ${currentUser} Served Dinner!`,
-      body:
-        petCount > 1
-          ? `${currentUser} served homemade ${recipe.name} ${recipe.emoji} to all pets! So spoilt~ 💖`
-          : `${currentUser} served homemade ${recipe.name} ${recipe.emoji} to ${activePet.name}! 💖`,
+      body: `${currentUser} served homemade ${recipe.name} ${recipe.emoji} to ${targetPet.name}! 💖`,
       timestamp: Date.now(),
     };
     lastCareEventIdRef.current = cuteCookedNotif.id;
 
     updateWorld((prev) => {
       const nextCount = Math.max(0, (prev.cookedInventory?.[recipe.id] || 0) - 1);
-      const nextPets = {};
-      Object.entries(prev.pets).forEach(([pid, pet]) => {
-        const isPrimary = pid === prev.activePetId;
-        const baseHunger = isPrimary ? liveStats.hunger : pet.hunger;
-        const baseHappiness = isPrimary ? liveStats.happiness : pet.happiness;
-        const baseEnergy = isPrimary ? liveStats.energy : pet.energy;
-        const baseHygiene = isPrimary ? liveStats.hygiene : pet.hygiene;
-        const basePotty = isPrimary ? liveStats.potty : (pet.potty ?? 0);
-        nextPets[pid] = {
-          ...pet,
-          hunger: clamp(baseHunger + recipe.hunger),
-          happiness: clamp(baseHappiness + recipe.happiness),
-          energy: baseEnergy,
-          hygiene: baseHygiene,
-          potty: clamp(basePotty + 32),
-          lastUpdated: Date.now(),
-        };
-      });
       return {
         ...prev,
         cookedInventory: { ...(prev.cookedInventory || {}), [recipe.id]: nextCount },
-        pets: nextPets,
+        pets: {
+          ...prev.pets,
+          [targetPet.id]: {
+            ...prev.pets[targetPet.id],
+            hunger: clamp(targetStats.hunger + recipe.hunger),
+            happiness: clamp(targetStats.happiness + recipe.happiness),
+            energy: targetStats.energy,
+            hygiene: targetStats.hygiene,
+            potty: clamp(targetStats.potty + 32),
+            lastUpdated: Date.now(),
+          },
+        },
         lastCareEvent: cuteCookedNotif,
         activities: [
           {
             id: Math.random().toString(36).slice(2),
             actor: currentUser,
-            text:
-              petCount > 1
-                ? `served homemade ${recipe.name} ${recipe.emoji} to all pets!`
-                : `served homemade ${recipe.name} ${recipe.emoji} to ${activePet.name}!`,
+            text: `served homemade ${recipe.name} ${recipe.emoji} to ${targetPet.name}!`,
             emoji: recipe.emoji,
             timestamp: Date.now(),
           },
@@ -3821,7 +4123,7 @@ export default function App() {
 
   const handleBedClick = (bedIndex = 0) => {
     if (activeTab !== 'home') return;
-    playSfx('cuddle', muted);
+    playSfx('cuddle', effectiveMuted);
     const petCount = Object.keys(world.pets).length;
     const targetX = petCount > 1 ? 18 : bedIndex === 0 ? 18 : 48;
     const targetY = 44;
@@ -3849,30 +4151,68 @@ export default function App() {
     }
   };
 
-  const handleBubbleBath = () => {
-    if (activePet.isSleeping) {
-      showToast(`Wake ${activePet.name} up before bath time!`);
+  const handleStartBathForPet = (targetPet) => {
+    if (targetPet.isSleeping) {
+      showToast(`Wake ${targetPet.name} up before bath time!`);
+      return;
+    }
+    const stats = getPetLiveStats(targetPet);
+    if (stats.hygiene >= 100) {
+      showToast(`${targetPet.name} is already 100% sparkling clean! 🫧`);
       return;
     }
     setCurrentRoom('bathroom');
     setIsPetOnBed(false);
+    setShowBathSelectModal(false);
+    setBathingPetId(targetPet.id);
     setShowBathGame(true);
   };
 
+  const handleBubbleBath = () => {
+    if (allPetsList.length === 1) {
+      handleStartBathForPet(activePet);
+      return;
+    }
+    const cleanablePets = allPetsList.filter((p) => !p.isSleeping && getPetLiveStats(p).hygiene < 100);
+    if (cleanablePets.length === 0) {
+      const anySleeping = allPetsList.some((p) => p.isSleeping);
+      showToast(
+        anySleeping
+          ? 'Wake your pets up before bath time!'
+          : 'All pets are already 100% sparkling clean! 🫧'
+      );
+      return;
+    }
+    setCurrentRoom('bathroom');
+    setIsPetOnBed(false);
+    setShowBathSelectModal(true);
+  };
+
   const handleCompleteBath = () => {
-    playSfx('coin', muted);
+    const targetPet = (bathingPetId && world.pets?.[bathingPetId]) || activePet;
+    const targetStats = getPetLiveStats(targetPet);
+    playSfx('coin', effectiveMuted);
     setShowBathGame(false);
-    movePetTo(64, 66, 750);
+    setBathingPetId(null);
+    if (targetPet.id === activePet.id) {
+      movePetTo(64, 66, 750);
+    }
     const cuteBathNotif = {
       title: `🫧 Squeaky Clean & Fluffy!`,
-      body: `${currentUser} gave ${activePet.name} a bubbly spa bath! Smells like strawberries~ ✨`,
+      body: `${currentUser} gave ${targetPet.name} a bubbly spa bath! Smells like strawberries~ ✨`,
     };
     commitPetUpdate(
-      () => ({ hygiene: 100, happiness: clamp(liveStats.happiness + 14) }),
+      () => ({
+        hunger: targetStats.hunger,
+        happiness: clamp(targetStats.happiness + 14),
+        energy: targetStats.energy,
+        hygiene: 100,
+        potty: targetStats.potty,
+      }),
       10,
-      `scrubbed & rinsed ${activePet.name} in a bubble bath! (+10🪙)`,
+      `scrubbed & rinsed ${targetPet.name} in a bubble bath! (+10🪙)`,
       '🫧',
-      false,
+      [targetPet.id],
       cuteBathNotif
     );
   };
@@ -3960,16 +4300,21 @@ export default function App() {
     setTimeout(() => setDroppedItem(null), 1300);
 
     commitPetUpdate(
-      () => ({
-        happiness: clamp(liveStats.happiness + 15),
-        energy: clamp(liveStats.energy - 8),
-        hunger: clamp(liveStats.hunger - 5),
+      (p) => ({
+        happiness: clamp(p.happiness + 15),
+        energy: clamp(p.energy - 8),
+        hunger: clamp(p.hunger - 5),
       }),
       8,
-      `played fetch with ${activePet.name} at Pet Park (+8🪙)!`,
-      '🎾'
+      allPetsList.length > 1
+        ? `played fetch with all pets at Pet Park (+8🪙)!`
+        : `played fetch with ${activePet.name} at Pet Park (+8🪙)!`,
+      '🎾',
+      true
     );
-    showToast(`${activePet.name} caught the ball! +8🪙`);
+    showToast(
+      allPetsList.length > 1 ? `Everyone chased the ball! +8🪙` : `${activePet.name} caught the ball! +8🪙`
+    );
   };
 
   const handleClaimDailyBonus = () => {
@@ -3995,12 +4340,34 @@ export default function App() {
     showToast(`+${DAILY_BONUS_COINS}🪙 Daily Bonus claimed!`);
   };
 
-  const handleSavePetName = () => {
+  const handleSavePetName = (petId) => {
     const trimmed = nameInput.trim();
-    if (!trimmed) return;
-    commitPetUpdate(() => ({ name: trimmed }), 0, `renamed their pet to ${trimmed}!`, '🏷️');
-    setIsEditingName(false);
-    showToast(`Renamed to ${trimmed}!`);
+    const target = world.pets?.[petId];
+    if (!trimmed || !target) return;
+    const oldName = target.name;
+    updateWorld((prev) => ({
+      ...prev,
+      pets: {
+        ...prev.pets,
+        [petId]: {
+          ...prev.pets[petId],
+          name: trimmed,
+          lastUpdated: Date.now(),
+        },
+      },
+      activities: [
+        {
+          id: Math.random().toString(36).slice(2),
+          actor: currentUser || 'Ronald & Ulfah',
+          text: `renamed ${oldName} to ${trimmed}!`,
+          emoji: '🏷️',
+          timestamp: Date.now(),
+        },
+        ...(prev.activities || []),
+      ].slice(0, 40),
+    }));
+    setEditingPetId(null);
+    showToast(`Renamed ${oldName} to ${trimmed}!`);
   };
 
   const handleSaveLoveNote = () => {
@@ -4156,6 +4523,40 @@ export default function App() {
     return { rTotal, uTotal, rGames, uGames };
   }, [world.scores]);
 
+  // Couple Chat Messages & Unread Counter
+  const chatMessages = useMemo(() => world.chatMessages || [], [world.chatMessages]);
+  const unreadChatCount = useMemo(() => {
+    if (showChat) return 0;
+    return Math.max(0, chatMessages.length - lastSeenChatCount);
+  }, [showChat, chatMessages.length, lastSeenChatCount]);
+
+  useEffect(() => {
+    if (showChat) {
+      setLastSeenChatCount(chatMessages.length);
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
+    }
+  }, [showChat, chatMessages.length]);
+
+  const handleSendChatMessage = (e) => {
+    e?.preventDefault();
+    const text = chatInput.trim();
+    if (!text) return;
+    playSfx('cuddle', effectiveMuted);
+    const msg = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      sender: currentUser,
+      text,
+      timestamp: Date.now(),
+    };
+    setChatInput('');
+    updateWorld((prev) => ({
+      ...prev,
+      chatMessages: [...(prev.chatMessages || []), msg].slice(-60),
+    }));
+  };
+
   const glassPill =
     'bg-[#FFFDF9]/90 backdrop-blur-md border-[1.5px] border-[#E6D8C5] text-[#3B2618] shadow-[0_3px_0_#E6D8C5]';
 
@@ -4240,7 +4641,11 @@ export default function App() {
   // SCREEN 2: FULLSCREEN PHONE-SIZED INTERACTIVE ROOM & TRANSLUCENT UI
   // ============================================================================
   return (
-    <div className="playful-font min-h-[100dvh] w-full flex items-center justify-center paper-grain sm:p-4">
+    <div
+      className={`playful-font min-h-[100dvh] w-full flex items-center justify-center paper-grain sm:p-4 ${
+        isAppMinimized ? 'app-minimized' : ''
+      }`}
+    >
       <style>{PET_ANIMATION_CSS}</style>
 
       <div className="relative w-full h-[100dvh] sm:h-[812px] sm:max-w-[400px] sm:rounded-[44px] sm:border-[5px] sm:border-[#E6D8C5] sm:shadow-[0_14px_0_#D8C6AE,0_28px_60px_rgba(59,38,24,0.16)] overflow-hidden flex flex-col select-none bg-[#FAF6F0]">
@@ -4257,19 +4662,26 @@ export default function App() {
               setActiveTab('arcade');
             }}
             onTableClick={() => {
-              playSfx('cuddle', muted);
+              playSfx('cuddle', effectiveMuted);
               if (showFoodDrawer) {
                 handleCloseFoodDrawer();
               } else {
-                if (activePet.isSleeping) {
-                  showToast(`Wake your pets up before mealtime!`);
+                const feedablePets = allPetsList.filter((p) => !p.isSleeping && getPetLiveStats(p).hunger < 100);
+                if (feedablePets.length === 0) {
+                  const anySleeping = allPetsList.some((p) => p.isSleeping);
+                  showToast(
+                    anySleeping
+                      ? 'Wake your pets up before mealtime!'
+                      : 'All pets are already 100% full! 🍓'
+                  );
                   return;
                 }
                 setShowFoodDrawer(true);
-                setIsSittingAtTable(true);
-                setIsPetOnBed(false);
-                movePetTo(22, 54, 700);
-                setTimeout(() => setPetFacing(1), 650);
+                if (allPetsList.length === 1) {
+                  handleSelectPetToFeed(activePet);
+                } else {
+                  setFeedingPetId(null);
+                }
               }
             }}
             onStoveClick={() => {
@@ -4314,66 +4726,59 @@ export default function App() {
             companionPets.map((buddy, idx) => {
               const buddyIsSleeping = buddy.isSleeping || activePet.isSleeping;
               const buddyOnBed = currentRoom === 'bedroom' && (isPetOnBed || buddyIsSleeping);
-              const buddyAtTable = currentRoom === 'dining' && isSittingAtTable;
+              const buddyAtTable = currentRoom === 'dining' && isSittingAtTable && feedingPetId === buddy.id;
+              const wanderState = companionPositions[buddy.id];
 
               const bx = buddyOnBed
                 ? idx === 0
-                  ? '48%'
-                  : '33%'
+                  ? 48
+                  : 33
                 : buddyAtTable
-                ? idx === 0
-                  ? '78%'
-                  : '50%'
-                : idx === 0
-                ? '76%'
-                : '22%';
+                ? 78
+                : wanderState?.x ?? (idx === 0 ? 74 : 24);
               const by = buddyOnBed
                 ? idx === 0
-                  ? '44%'
-                  : '48%'
+                  ? 44
+                  : 48
                 : buddyAtTable
-                ? idx === 0
-                  ? '54%'
-                  : '69%'
-                : idx === 0
-                ? '60%'
-                : '62%';
+                ? 54
+                : wanderState?.y ?? (idx === 0 ? 60 : 62);
 
-              const buddyFacing = buddyAtTable && idx === 0 ? -1 : 1;
+              const buddyFacing = buddyAtTable ? -1 : wanderState?.facing ?? 1;
+              const buddyWalking = !buddyOnBed && !buddyAtTable && !buddyIsSleeping && Boolean(wanderState?.walking);
+              const buddyAgeMs = Math.max(60000, now - (buddy.adoptedAt || now));
+              const buddyScale = getGrowthStage(buddyAgeMs).scale;
 
               return (
-                <button
+                <div
                   key={buddy.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    playSfx('cuddle', muted);
-                    updateWorld((prev) => ({ ...prev, activePetId: buddy.id }));
-                    showToast(`Switched focus to ${buddy.name}!`);
-                  }}
+                  onClick={(e) => handleCuddlePet(e, buddy, { x: bx, y: by })}
                   style={{
-                    left: bx,
-                    top: by,
+                    left: `${bx}%`,
+                    top: `${by}%`,
+                    transform: `translate(-50%, -50%) scale(${buddyScale})`,
                     transition: 'left 850ms cubic-bezier(0.34,1.2,0.64,1), top 850ms cubic-bezier(0.34,1.2,0.64,1)',
                   }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 z-10 active:scale-90"
-                  title={`Tap to focus on ${buddy.name}`}
+                  className="absolute z-20 cursor-pointer active:scale-90"
+                  title={`Tap to cuddle ${buddy.name}`}
                 >
-                  {buddyAtTable && !isEating && !buddyIsSleeping && idx === 0 && (
+                  {buddyAtTable && !isEating && !buddyIsSleeping && (
                     <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-white/95 border-2 border-orange-300 shadow text-[9px] font-bold text-orange-700 whitespace-nowrap animate-bounce">
-                      😋 Yum~
+                      🍽️ Waiting~
                     </div>
                   )}
                   <AnimatedStickerPet
                     speciesId={buddy.speciesId}
                     outfit={buddy.outfit}
                     isSleeping={buddyIsSleeping}
+                    isWalking={buddyWalking}
                     isEating={isEating && buddyAtTable}
                     isWaiting={buddyAtTable && !isEating}
-                    isHappy={isHappy}
+                    isHappy={isHappy && feedingPetId === buddy.id}
                     facing={buddyFacing}
-                    size={buddyOnBed || buddyAtTable ? 84 : 68}
+                    size={buddyOnBed || buddyAtTable ? 88 : 96}
                   />
-                </button>
+                </div>
               );
             })}
 
@@ -4484,28 +4889,136 @@ export default function App() {
               <span>{world.coins}</span>
             </div>
             <button
+              onClick={() => {
+                setActiveTab('pets');
+                setEditingPetId(null);
+              }}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-extrabold active:translate-y-0.5 transition ${glassPill}`}
+              title="Our Pets & Details"
+            >
+              <span>🐾</span>
+              <span>{allPetsList.length}</span>
+            </button>
+            <button
               onClick={() => setActiveTab('leaderboard')}
               className={`p-1.5 rounded-full active:translate-y-0.5 transition ${glassPill}`}
               title="Ronald vs. Ulfah Leaderboard"
             >
-              <Trophy className="w-3.5 h-3.5 text-[#C88A2E]" />
+              <IconTrophy className="w-3.5 h-3.5 text-[#C88A2E]" />
             </button>
             <button
               onClick={() => setActiveTab('diary')}
               className={`p-1.5 rounded-full active:translate-y-0.5 transition ${glassPill}`}
               title="Shared Care Diary"
             >
-              <BookOpen className="w-3.5 h-3.5 text-[#D95D78]" />
+              <IconBookOpen className="w-3.5 h-3.5 text-[#D95D78]" />
             </button>
             <button
               onClick={() => setMuted((m) => !m)}
               className={`p-1.5 rounded-full active:translate-y-0.5 transition ${glassPill}`}
               title={muted ? 'Unmute SFX' : 'Mute SFX'}
             >
-              {muted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              {effectiveMuted ? <IconVolumeX className="w-3.5 h-3.5" /> : <IconVolume2 className="w-3.5 h-3.5" />}
             </button>
           </div>
         </header>
+
+        {/* FLOATING COUPLE CHAT BUTTON (BOTTOM LEFT ABOVE DOCK) */}
+        <div className="absolute left-3.5 bottom-[84px] z-40">
+          <button
+            onClick={() => {
+              playSfx('cuddle', effectiveMuted);
+              setShowChat((v) => !v);
+            }}
+            className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-90 ${glassPill} ${
+              showChat ? 'ring-2 ring-[#D95D78]' : ''
+            }`}
+            title="Chat with your partner"
+          >
+            <IconMessageCircle className="w-4 h-4 text-[#D95D78]" />
+            {unreadChatCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[#D95D78] text-white text-[9.5px] font-black flex items-center justify-center shadow">
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* SIMPLE COUPLE CHAT POPUP */}
+        {showChat && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute left-3.5 right-3.5 bottom-[132px] z-40 rounded-[26px] bg-[#FFFDF9]/95 backdrop-blur-xl border-2 border-[#E6D8C5] shadow-[0_8px_0_#E6D8C5,0_16px_32px_rgba(59,38,24,0.16)] p-3 space-y-2.5"
+          >
+            <div className="flex items-center justify-between pb-1.5 border-b border-[#EFE6D8]">
+              <div className="flex items-center gap-1.5">
+                <CoupleAvatar player={isRonald ? 'Ulfah' : 'Ronald'} size={22} />
+                <span className="serif-display text-xs font-bold text-[#3B2618]">
+                  Chat with {isRonald ? 'Ulfah' : 'Ronald'}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowChat(false)}
+                className="p-1 rounded-full bg-[#F5ECE0] text-[#5C3D2E] hover:bg-[#EBDEC9] transition"
+              >
+                <IconX className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="h-40 overflow-y-auto space-y-1.5 pr-1">
+              {chatMessages.length === 0 ? (
+                <p className="text-[11px] font-semibold text-[#A38873] text-center py-12">
+                  Send a sweet message to {isRonald ? 'Ulfah' : 'Ronald'}! 💌
+                </p>
+              ) : (
+                chatMessages.map((m) => {
+                  const isMine = m.sender === currentUser;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] px-3 py-1.5 rounded-2xl text-[11.5px] font-semibold leading-snug ${
+                          isMine
+                            ? 'bg-[#D95D78] text-white rounded-br-xs'
+                            : 'bg-[#F5ECE0] text-[#3B2618] border border-[#E6D8C5] rounded-bl-xs'
+                        }`}
+                      >
+                        {m.text}
+                      </div>
+                      <span className="text-[8.5px] font-bold text-[#A38873] mt-0.5 px-1">
+                        {m.sender} ·{' '}
+                        {new Date(m.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <form onSubmit={handleSendChatMessage} className="flex items-center gap-1.5">
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder={`Message ${isRonald ? 'Ulfah' : 'Ronald'}...`}
+                maxLength={140}
+                className="flex-1 px-3 py-1.5 rounded-full border border-[#E6D8C5] bg-white text-xs font-semibold text-[#3B2618] focus:outline-none focus:border-[#D95D78]"
+              />
+              <button
+                type="submit"
+                className="p-2 rounded-full bg-[#D95D78] text-white active:scale-90 transition"
+                title="Send message"
+              >
+                <IconSend className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* COLLAPSIBLE MUSIC PLAYER (AUTO-MINIMIZES TO MUSIC LOGO AFTER 3s IDLE) */}
         <audio
@@ -4529,7 +5042,7 @@ export default function App() {
               }`}
               title="Open Music Player"
             >
-              <Music
+              <IconMusic
                 className={`w-4 h-4 ${
                   isPlayingMusic ? 'text-[#D95D78] animate-pulse' : 'text-[#6E4D37]'
                 }`}
@@ -4541,7 +5054,7 @@ export default function App() {
               onTouchStart={resetMusicIdleTimer}
               className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full transition-all ${glassPill}`}
             >
-              <Music
+              <IconMusic
                 className={`w-3.5 h-3.5 shrink-0 ${
                   isPlayingMusic ? 'text-[#D95D78] animate-pulse' : 'text-[#8C6D56]'
                 }`}
@@ -4555,9 +5068,9 @@ export default function App() {
                 title={isPlayingMusic ? 'Pause' : 'Play'}
               >
                 {isPlayingMusic ? (
-                  <Pause className="w-3 h-3 fill-white" />
+                  <IconPause className="w-3 h-3" />
                 ) : (
-                  <Play className="w-3 h-3 fill-white" />
+                  <IconPlay className="w-3 h-3" />
                 )}
               </button>
               <button
@@ -4565,14 +5078,14 @@ export default function App() {
                 className="p-1.5 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#5C3D2E] active:scale-90 transition"
                 title="Skip Song"
               >
-                <SkipForward className="w-3 h-3" />
+                <IconSkipForward className="w-3 h-3" />
               </button>
               <button
                 onClick={handleStopMusic}
                 className="p-1.5 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#5C3D2E] active:scale-90 transition"
                 title="Stop Song"
               >
-                <Square className="w-3 h-3" />
+                <IconSquare className="w-3 h-3" />
               </button>
             </div>
           )}
@@ -4614,14 +5127,22 @@ export default function App() {
                 {!statusExpanded ? (
                   <button
                     onClick={expandStatusCard}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full active:scale-95 transition ${glassPill}`}
+                    className={`inline-flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-full active:scale-95 transition ${glassPill}`}
                     title="Tap to expand status"
                   >
-                    <span className="serif-display text-xs font-bold text-[#3B2618]">{activePet.name}</span>
-                    <span className="text-[10px] font-extrabold text-[#E68A47]">🍓{liveStats.hunger}%</span>
-                    <span className="text-[10px] font-extrabold text-[#DF6A84]">💖{liveStats.happiness}%</span>
-                    <span className="text-[10px] font-extrabold text-[#DFB048]">⚡{liveStats.energy}%</span>
-                    <span className="text-[10px] font-extrabold text-[#5BA4CF]">🫧{liveStats.hygiene}%</span>
+                    {allPetsList.map((p, i) => {
+                      const eMins = Math.max(0, (now - (p.lastUpdated || now)) / 60000);
+                      const pHunger = i === 0 && p.id === activePet.id ? liveStats.hunger : clamp(Math.round(p.hunger - eMins * 0.45));
+                      const pJoy = i === 0 && p.id === activePet.id ? liveStats.happiness : clamp(Math.round(p.happiness - eMins * 0.35));
+                      return (
+                        <span key={p.id} className="inline-flex items-center gap-1">
+                          {i > 0 && <span className="text-[#D6C7B2] mx-0.5">|</span>}
+                          <span className="serif-display text-xs font-bold text-[#3B2618]">{p.name}</span>
+                          <span className="text-[10px] font-extrabold text-[#E68A47]">🍓{pHunger}%</span>
+                          <span className="text-[10px] font-extrabold text-[#DF6A84]">💖{pJoy}%</span>
+                        </span>
+                      );
+                    })}
                   </button>
                 ) : (
                   <div
@@ -4633,73 +5154,44 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        {isEditingName ? (
-                          <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1">
-                            <input
-                              value={nameInput}
-                              onChange={(e) => setNameInput(e.target.value)}
-                              maxLength={16}
-                              className="w-24 px-2 py-0.5 text-xs font-bold rounded-lg border border-[#D95D78] text-[#3B2618] bg-white focus:outline-none"
-                              autoFocus
-                            />
-                            <button onClick={handleSavePetName} className="p-1 rounded-lg bg-[#4D9E6A] text-white">
-                              <Check className="w-3 h-3" />
-                            </button>
-                            <button onClick={() => setIsEditingName(false)} className="p-1 rounded-lg bg-[#EAE0D2] text-[#5C3D2E]">
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="serif-display text-[15px] font-bold truncate text-[#3B2618]">{activePet.name}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F5ECE0] border border-[#E6D8C5] text-[#7A5438] shrink-0">
-                              {growthInfo.stage} · {formatAge(ageMs)}
-                            </span>
-                            <span className="text-[10px] font-extrabold text-[#C88A2E] shrink-0">
-                              ★{activePet.stars || 1}
-                            </span>
-                            {activePet.isSleeping && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSwitchRoom('bedroom');
-                                }}
-                                className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[#E8ECF8] text-[#3C4B7A] border border-[#C6D0EC] shrink-0 active:scale-95 transition"
-                                title="Go to Bedroom"
-                              >
-                                🌙 {activePet.wakeAt ? `Wakes ${formatWakeTimeWIB(activePet.wakeAt)}` : 'In Bed'}
-                              </button>
-                            )}
-                          </>
+                        <span className="serif-display text-[15px] font-bold truncate text-[#3B2618]">
+                          {allPetsList.length > 1
+                            ? allPetsList.map((p) => p.name).join(' & ')
+                            : activePet.name}
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F5ECE0] border border-[#E6D8C5] text-[#7A5438] shrink-0">
+                          {growthInfo.stage} · {formatAge(ageMs)}
+                        </span>
+                        <span className="text-[10px] font-extrabold text-[#C88A2E] shrink-0">
+                          ★{activePet.stars || 1}
+                        </span>
+                        {activePet.isSleeping && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSwitchRoom('bedroom');
+                            }}
+                            className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[#E8ECF8] text-[#3C4B7A] border border-[#C6D0EC] shrink-0 active:scale-95 transition"
+                            title="Go to Bedroom"
+                          >
+                            🌙 {activePet.wakeAt ? `Wakes ${formatWakeTimeWIB(activePet.wakeAt)}` : 'In Bed'}
+                          </button>
                         )}
                       </div>
 
-                      {!isEditingName && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNameInput(activePet.name);
-                              setIsEditingName(true);
-                            }}
-                            className="p-1.5 rounded-full bg-[#F5ECE0] hover:bg-[#EBDEC9] text-[#6E4D37] transition"
-                            title="Rename pet"
-                          >
-                            <Edit3 className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNoteInput(world.loveNote?.text || '');
-                              setIsEditingNote((v) => !v);
-                            }}
-                            className="p-1.5 rounded-full bg-[#FDECEF] hover:bg-[#FAD9DF] text-[#D95D78] transition"
-                            title="Pin couple love note"
-                          >
-                            <Heart className="w-3 h-3 fill-[#D95D78]" />
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNoteInput(world.loveNote?.text || '');
+                            setIsEditingNote((v) => !v);
+                          }}
+                          className="p-1.5 rounded-full bg-[#FDECEF] hover:bg-[#FAD9DF] text-[#D95D78] transition"
+                          title="Pin couple love note"
+                        >
+                          <IconHeart className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-4 gap-2">
@@ -4732,7 +5224,7 @@ export default function App() {
                           autoFocus
                         />
                         <button onClick={handleSaveLoveNote} className="p-1.5 rounded-xl bg-[#D95D78] text-white">
-                          <Send className="w-3 h-3" />
+                          <IconSend className="w-3 h-3" />
                         </button>
                       </div>
                     ) : (
@@ -4750,78 +5242,137 @@ export default function App() {
             <div className="pointer-events-auto">
               {showFoodDrawer && (
                 <div className="rounded-[30px] p-3.5 bg-white/88 backdrop-blur-xl border-2 border-white shadow-[0_8px_24px_rgba(249,115,22,0.18)] space-y-2.5 text-amber-950 max-h-[55vh] overflow-y-auto">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-sm font-bold text-orange-900">🍽️ Shared Kitchen</span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          handleCloseFoodDrawer();
-                          setShowCookModal(true);
-                        }}
-                        className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold border-2 border-amber-300 active:scale-95 transition"
-                      >
-                        🍳 Cook
-                      </button>
-                      <button
-                        onClick={handleCloseFoodDrawer}
-                        className="p-1 rounded-full bg-orange-100/80 text-orange-700 hover:bg-orange-200 transition"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {COOKING_RECIPES.some((r) => (world.cookedInventory?.[r.id] || 0) > 0) && (
-                    <div className="space-y-1">
-                      <div className="text-[10px] font-black text-emerald-700 px-1">
-                        👨‍🍳 Homemade Cooked Meals (Free!)
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {COOKING_RECIPES.filter((r) => (world.cookedInventory?.[r.id] || 0) > 0).map((rec) => (
-                          <button
-                            key={rec.id}
-                            onClick={() => handleFeedCooked(rec)}
-                            className="flex items-center justify-between p-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 border border-emerald-300 transition text-left active:scale-95"
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-xl">{rec.emoji}</span>
-                              <div className="min-w-0">
-                                <div className="text-[11px] font-extrabold text-gray-800 truncate">{rec.name}</div>
-                                <div className="text-[9px] text-emerald-700 font-bold">+{rec.hunger} Food</div>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-black text-emerald-800 bg-white px-1.5 py-0.5 rounded-lg border border-emerald-200 shrink-0">
-                              x{world.cookedInventory[rec.id]}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <div className="text-[10px] font-black text-orange-700 px-1">🍓 Quick Snacks</div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {FOOD_MENU.map((food) => (
+                  {!feedingPetId ? (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-sm font-bold text-orange-900">🍽️ Who do you want to feed?</span>
                         <button
-                          key={food.id}
-                          onClick={() => handleFeedPet(food)}
-                          className="flex items-center justify-between p-2 rounded-2xl bg-white/75 hover:bg-white border border-orange-200/70 transition text-left active:scale-95"
+                          onClick={handleCloseFoodDrawer}
+                          className="p-1 rounded-full bg-orange-100/80 text-orange-700 hover:bg-orange-200 transition"
                         >
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xl">{food.emoji}</span>
-                            <div>
-                              <div className="text-[11px] font-extrabold text-gray-800">{food.name}</div>
-                              <div className="text-[9px] text-orange-700 font-bold">+{food.hunger} Food</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-black text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-lg">
-                            {food.cost}🪙
-                          </span>
+                          <IconX className="w-4 h-4" />
                         </button>
-                      ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {allPetsList.map((pet) => {
+                          const stats = getPetLiveStats(pet);
+                          const isFull = stats.hunger >= 100;
+                          const isAsleep = pet.isSleeping;
+                          const disabled = isFull || isAsleep;
+                          return (
+                            <button
+                              key={pet.id}
+                              disabled={disabled}
+                              onClick={() => handleSelectPetToFeed(pet)}
+                              className={`p-2.5 rounded-2xl border-2 flex items-center gap-2 text-left transition ${
+                                disabled
+                                  ? 'bg-gray-100/90 border-gray-200 opacity-60 cursor-not-allowed'
+                                  : 'bg-amber-50/90 hover:bg-amber-100 border-amber-300 active:scale-95'
+                              }`}
+                            >
+                              <AnimatedStickerPet speciesId={pet.speciesId} outfit={pet.outfit} size={46} />
+                              <div className="min-w-0">
+                                <div className="text-xs font-black text-gray-800 truncate">{pet.name}</div>
+                                <div className="text-[10px] font-extrabold text-orange-700">
+                                  {isAsleep ? '💤 Sleeping' : isFull ? '✅ 100% Full' : `🍓 ${stats.hunger}%`}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {allPetsList.length > 1 && (
+                            <button
+                              onClick={() => {
+                                setFeedingPetId(null);
+                                setIsSittingAtTable(false);
+                              }}
+                              className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 text-[10px] font-black active:scale-95 transition"
+                            >
+                              ← Switch
+                            </button>
+                          )}
+                          <span className="text-sm font-bold text-orange-900 truncate">
+                            🍽️ Feeding {(world.pets?.[feedingPetId] || activePet).name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => {
+                              handleCloseFoodDrawer();
+                              setShowCookModal(true);
+                            }}
+                            className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold border-2 border-amber-300 active:scale-95 transition"
+                          >
+                            🍳 Cook
+                          </button>
+                          <button
+                            onClick={handleCloseFoodDrawer}
+                            className="p-1 rounded-full bg-orange-100/80 text-orange-700 hover:bg-orange-200 transition"
+                          >
+                            <IconX className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {COOKING_RECIPES.some((r) => (world.cookedInventory?.[r.id] || 0) > 0) && (
+                        <div className="space-y-1">
+                          <div className="text-[10px] font-black text-emerald-700 px-1">
+                            👨‍🍳 Homemade Cooked Meals (Free!)
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {COOKING_RECIPES.filter((r) => (world.cookedInventory?.[r.id] || 0) > 0).map((rec) => (
+                              <button
+                                key={rec.id}
+                                onClick={() => handleFeedCooked(rec)}
+                                className="flex items-center justify-between p-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 border border-emerald-300 transition text-left active:scale-95"
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-xl">{rec.emoji}</span>
+                                  <div className="min-w-0">
+                                    <div className="text-[11px] font-extrabold text-gray-800 truncate">{rec.name}</div>
+                                    <div className="text-[9px] text-emerald-700 font-bold">+{rec.hunger} Food</div>
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-black text-emerald-800 bg-white px-1.5 py-0.5 rounded-lg border border-emerald-200 shrink-0">
+                                  x{world.cookedInventory[rec.id]}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-black text-orange-700 px-1">🍓 Quick Snacks</div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {FOOD_MENU.map((food) => (
+                            <button
+                              key={food.id}
+                              onClick={() => handleFeedPet(food)}
+                              className="flex items-center justify-between p-2 rounded-2xl bg-white/75 hover:bg-white border border-orange-200/70 transition text-left active:scale-95"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xl">{food.emoji}</span>
+                                <div>
+                                  <div className="text-[11px] font-extrabold text-gray-800">{food.name}</div>
+                                  <div className="text-[9px] text-orange-700 font-bold">+{food.hunger} Food</div>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-black text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-lg">
+                                {food.cost}🪙
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -4844,6 +5395,7 @@ export default function App() {
                 </button>
                 <div className="flex items-center gap-1">
                   {[
+                    { id: 'pets', emoji: '🐾' },
                     { id: 'wardrobe', emoji: '👗' },
                     { id: 'gacha', emoji: '🎁' },
                     { id: 'arcade', emoji: '🎮' },
@@ -4867,6 +5419,163 @@ export default function App() {
                   ))}
                 </div>
               </div>
+
+              {activeTab === 'pets' && (
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="serif-display text-base font-bold text-[#3B2618]">
+                        🐾 Our Pet Family ({allPetsList.length})
+                      </h3>
+                      <p className="text-[10.5px] font-semibold text-[#8C6D56]">
+                        View every pet&apos;s details, stats &amp; rename them here
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('gacha')}
+                      className="px-3 py-1.5 rounded-full bg-[#D95D78] text-white text-[10.5px] font-extrabold active:scale-95 transition"
+                    >
+                      + Adopt
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {allPetsList.map((pet) => {
+                      const spec = getSpecies(pet.speciesId);
+                      const pAgeMs = Math.max(60000, now - (pet.adoptedAt || now));
+                      const pGrowth = getGrowthStage(pAgeMs);
+                      const eMins = Math.max(0, (now - (pet.lastUpdated || now)) / 60000);
+                      const isPrimary = pet.id === activePet.id;
+                      const pHunger = isPrimary ? liveStats.hunger : clamp(Math.round(pet.hunger - eMins * 0.45));
+                      const pJoy = isPrimary ? liveStats.happiness : clamp(Math.round(pet.happiness - eMins * 0.35));
+                      const pEnergy = isPrimary
+                        ? liveStats.energy
+                        : pet.isSleeping
+                        ? clamp(Math.round(pet.energy + eMins * 1.6))
+                        : clamp(Math.round(pet.energy - eMins * 0.4));
+                      const pHygiene = isPrimary ? liveStats.hygiene : clamp(Math.round(pet.hygiene - eMins * 0.3));
+                      const isRenamingThis = editingPetId === pet.id;
+
+                      return (
+                        <div
+                          key={pet.id}
+                          className={`rounded-[26px] p-3.5 bg-gradient-to-br ${spec.bg} border-2 ${spec.border} space-y-2.5 shadow-xs`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="bg-white/85 rounded-2xl p-2 border border-white shrink-0">
+                              <AnimatedStickerPet
+                                speciesId={pet.speciesId}
+                                outfit={pet.outfit}
+                                isSleeping={pet.isSleeping}
+                                isHappy={!pet.isSleeping}
+                                size={74}
+                              />
+                            </div>
+
+                            <div className="flex-1 min-w-0 space-y-1">
+                              {isRenamingThis ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    value={nameInput}
+                                    onChange={(e) => setNameInput(e.target.value)}
+                                    maxLength={16}
+                                    placeholder="New pet name..."
+                                    className="w-full min-w-0 px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#D95D78] text-[#3B2618] bg-white focus:outline-none"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleSavePetName(pet.id)}
+                                    className="p-1.5 rounded-xl bg-[#4D9E6A] text-white shrink-0"
+                                    title="Save name"
+                                  >
+                                    <IconCheck className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingPetId(null)}
+                                    className="p-1.5 rounded-xl bg-white/90 text-[#5C3D2E] shrink-0"
+                                    title="Cancel"
+                                  >
+                                    <IconX className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-between gap-1.5">
+                                  <span className="serif-display text-base font-bold text-[#3B2618] truncate">
+                                    {pet.name}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      setEditingPetId(pet.id);
+                                      setNameInput(pet.name);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 hover:bg-white border border-[#E6D8C5] text-[#5C3D2E] text-[10px] font-extrabold shrink-0 active:scale-95 transition"
+                                  >
+                                    <IconEdit3 className="w-3 h-3" />
+                                    <span>Rename</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-1">
+                                <span className="text-[10px] font-extrabold text-[#5C3D2E]">
+                                  {spec.speciesName}
+                                </span>
+                                <span
+                                  className={`text-[8.5px] font-black px-1.5 py-0.5 rounded-full border ${RARITY_STYLES[spec.rarity]}`}
+                                >
+                                  {spec.rarity}
+                                </span>
+                                <span className="text-[9.5px] font-black text-amber-700">
+                                  ★{pet.stars || 1}
+                                </span>
+                              </div>
+
+                              <div className="text-[9.5px] font-bold text-[#7A5438]">
+                                {pGrowth.stage} ({pGrowth.nextLabel}) · Age {formatAge(pAgeMs)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1.5 bg-white/80 rounded-2xl p-2 border border-white">
+                            {[
+                              { label: 'Food', icon: '🍓', val: pHunger, color: 'bg-[#E68A47]' },
+                              { label: 'Joy', icon: '💖', val: pJoy, color: 'bg-[#DF6A84]' },
+                              { label: 'Energy', icon: '⚡', val: pEnergy, color: 'bg-[#DFB048]' },
+                              { label: 'Clean', icon: '🫧', val: pHygiene, color: 'bg-[#5BA4CF]' },
+                            ].map((st) => (
+                              <div key={st.label} className="space-y-1">
+                                <div className="flex items-center justify-between text-[9px] font-extrabold text-[#5C3D2E]">
+                                  <span>{st.icon}</span>
+                                  <span>{st.val}%</span>
+                                </div>
+                                <div className="h-1.5 rounded-full bg-[#EFE6D8] overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${st.color}`}
+                                    style={{ width: `${st.val}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[9.5px] font-bold text-[#6E4D37] px-1">
+                            <span>Adopted by {pet.adoptedBy || 'Ronald & Ulfah'}</span>
+                            <button
+                              onClick={() => {
+                                updateWorld((prev) => ({ ...prev, activePetId: pet.id }));
+                                setActiveTab('wardrobe');
+                              }}
+                              className="text-[#D95D78] font-extrabold hover:underline"
+                            >
+                              Dress Up →
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {activeTab === 'wardrobe' && (
                 <div className="space-y-3.5">
@@ -5125,7 +5834,7 @@ export default function App() {
                     ].map((p) => (
                       <div key={p.name} className={`relative rounded-3xl p-3.5 bg-gradient-to-b ${p.bg} border-2 text-center space-y-1`}>
                         {p.leading && (
-                          <Crown className="w-5 h-5 text-amber-500 fill-amber-400 absolute -top-2.5 left-1/2 -translate-x-1/2" />
+                          <IconCrown className="w-5 h-5 text-amber-500 absolute -top-2.5 left-1/2 -translate-x-1/2" />
                         )}
                         <div className="flex justify-center">
                           <CoupleAvatar player={p.name} size={52} />
@@ -5167,7 +5876,7 @@ export default function App() {
                       onClick={() => setShowResetModal(true)}
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 hover:bg-rose-100 text-gray-600 hover:text-rose-600 text-[10px] font-black transition"
                     >
-                      <RotateCcw className="w-3 h-3" /> Reset
+                      <IconRotateCcw className="w-3 h-3" /> Reset
                     </button>
                   </div>
                   <div className="space-y-2">
@@ -5234,13 +5943,61 @@ export default function App() {
           </button>
         </nav>
 
+        {/* CHOOSE PET FOR BATH MODAL */}
+        {showBathSelectModal && (
+          <div className="absolute inset-0 z-50 bg-sky-950/45 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-[340px] rounded-[30px] bg-white/95 backdrop-blur-xl border-2 border-white shadow-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-sky-900">🫧 Who needs a bath?</h3>
+                <button
+                  onClick={() => setShowBathSelectModal(false)}
+                  className="p-1.5 rounded-full bg-gray-100 text-gray-500"
+                >
+                  <IconX className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {allPetsList.map((pet) => {
+                  const stats = getPetLiveStats(pet);
+                  const isClean = stats.hygiene >= 100;
+                  const isAsleep = pet.isSleeping;
+                  const disabled = isClean || isAsleep;
+                  return (
+                    <button
+                      key={pet.id}
+                      disabled={disabled}
+                      onClick={() => handleStartBathForPet(pet)}
+                      className={`p-2.5 rounded-2xl border-2 flex items-center gap-2 text-left transition ${
+                        disabled
+                          ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
+                          : 'bg-sky-50 hover:bg-sky-100 border-sky-300 active:scale-95'
+                      }`}
+                    >
+                      <AnimatedStickerPet speciesId={pet.speciesId} outfit={pet.outfit} size={46} />
+                      <div className="min-w-0">
+                        <div className="text-xs font-black text-gray-800 truncate">{pet.name}</div>
+                        <div className="text-[10px] font-extrabold text-sky-700">
+                          {isAsleep ? '💤 Sleeping' : isClean ? '✨ 100% Clean' : `🫧 ${stats.hygiene}%`}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* INTERACTIVE BATH MINIGAME MODAL */}
         {showBathGame && (
           <BathMinigameModal
-            pet={activePet}
-            muted={muted}
+            pet={(bathingPetId && world.pets?.[bathingPetId]) || activePet}
+            muted={effectiveMuted}
             onComplete={handleCompleteBath}
-            onClose={() => setShowBathGame(false)}
+            onClose={() => {
+              setShowBathGame(false);
+              setBathingPetId(null);
+            }}
           />
         )}
 
